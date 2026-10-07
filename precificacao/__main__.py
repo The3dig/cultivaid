@@ -5,12 +5,15 @@ Uso:
     python -m precificacao preco --custo 18.50
     python -m precificacao simular --custo 18.50 --preco 49.90
     python -m precificacao config            # cria precificacao.json para você editar
+    python -m precificacao catalogo produtos.csv [--saida precos/]   # carteira inteira, todos os canais
+    python -m precificacao catalogo --modelo produtos.csv             # cria a planilha modelo
 Opções gerais: --canais shopee,amazon   --frete 25 (frete grátis pago por você, acima de R$ 79)
 """
 import argparse
 import json
 import os
 
+from . import catalogo as cat
 from .config import PADRAO, carregar
 from .custo3d import custo_peca
 from .preco import Resultado, canais_ativos, precificar, simular
@@ -26,6 +29,41 @@ def imprimir_tabela(rs: list[Resultado]) -> None:
     for r in rs:
         print(f"{r.nome:<26}{brl(r.preco):>12}{brl(r.comissao):>12}{brl(r.frete):>10}"
               f"{brl(r.imposto):>10}{brl(r.lucro):>11}{r.margem:>8.0%}")
+
+
+def rodar_catalogo(cfg: dict, args, canais: list[str]) -> None:
+    if args.modelo:
+        if os.path.exists(args.planilha):
+            raise SystemExit(f"{args.planilha} já existe.")
+        cat.criar_modelo(args.planilha)
+        print(f"Criado {args.planilha} com {len(cat.EXEMPLO)} exemplos. Abra no Excel/Google Planilhas e "
+              f"preencha uma linha por produto.")
+        return
+    produtos, invalidos = cat.montar(cfg, cat.ler(args.planilha), canais)
+    arquivos = cat.exportar(produtos, canais, args.saida)
+    anuncios = sum(len(p.precos) for p in produtos)
+    print(f"\n{len(produtos)} produtos × {len(canais)} canais = {anuncios} anúncios precificados")
+    for c in canais:
+        rs = [p.precos[c] for p in produtos if c in p.precos]
+        if rs:
+            print(f"  {cfg['canais'][c].get('nome', c):<26} preço médio {brl(sum(r.preco for r in rs) / len(rs)):>11}"
+                  f"   lucro médio {brl(sum(r.lucro for r in rs) / len(rs)):>10}")
+    if produtos:
+        top = sorted(produtos, key=lambda p: -max((r.lucro for r in p.precos.values()), default=0))[:5]
+        print("\nMaior lucro por unidade: " + ", ".join(
+            f"{p.sku} ({brl(max(r.lucro for r in p.precos.values()))})" for p in top if p.precos))
+    for sku, erro in invalidos:
+        print(f"⚠️  {sku}: {erro}")
+    for p in produtos:
+        for c, erro in p.erros.items():
+            print(f"⚠️  {p.sku} / {c}: {erro}")
+    nec, disp = cat.capacidade(cfg, produtos)
+    if nec:
+        uso = nec / disp
+        print(f"\nCapacidade: as vendas estimadas pedem {nec:,.0f} h de impressão/mês; você tem {disp:,.0f} h "
+              f"({cfg['impressao'].get('impressoras', 1)} impressora(s)) → {uso:.0%} de uso"
+              + (" — ⚠️ precisa de mais impressoras" if uso > 0.85 else ""))
+    print("\nArquivos: " + ", ".join(arquivos))
 
 
 def main() -> None:
@@ -44,7 +82,11 @@ def main() -> None:
     ps.add_argument("--custo", type=float, required=True)
     ps.add_argument("--preco", type=float, required=True)
     sub.add_parser("config", help="cria precificacao.json com os valores padrão")
-    for s in (pc, pp, ps):
+    pk = sub.add_parser("catalogo", help="preço de todos os produtos da planilha em todos os canais")
+    pk.add_argument("planilha")
+    pk.add_argument("--saida", default="precos", help="pasta dos arquivos gerados")
+    pk.add_argument("--modelo", action="store_true", help="cria a planilha modelo com exemplos")
+    for s in (pc, pp, ps, pk):
         s.add_argument("--canais", help="lista separada por vírgula (padrão: todos os ativos)")
         s.add_argument("--frete", type=float, help="frete pago por você quando há frete grátis")
         s.add_argument("--margem", type=float, help="margem desejada, ex.: 0.25")
@@ -62,6 +104,10 @@ def main() -> None:
     cfg = carregar()
     if args.margem is not None:
         cfg["margem"] = args.margem
+    if args.cmd == "catalogo":
+        canais = args.canais.split(",") if args.canais else cfg["carteira"]
+        rodar_catalogo(cfg, args, canais)
+        return
     canais = args.canais.split(",") if args.canais else canais_ativos(cfg)
 
     if args.cmd == "peca":

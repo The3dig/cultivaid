@@ -115,3 +115,39 @@ def test_tiktok_preco_alto_usa_teto(cfg):
 def test_elo7_frete_acima_de_79_90(cfg):
     assert simular(cfg, "elo7", 10, 50).frete == 0
     assert simular(cfg, "elo7", 10, 79.90).frete == 6.00
+
+
+def test_catalogo_ponta_a_ponta(cfg, tmp_path):
+    from precificacao import catalogo as cat
+    arq = tmp_path / "produtos.csv"
+    cat.criar_modelo(str(arq))
+    with open(arq, "a", encoding="utf-8") as f:
+        f.write("REVENDA-1;Produto comprado;;;;;;12,50;;;;;5;10;;\n")
+        f.write("SEM-DADOS;Faltou custo;PLA;;;;;;;;;;;;;\n")
+    produtos, invalidos = cat.montar(cfg, cat.ler(str(arq)), cfg["carteira"])
+    assert len(produtos) == 6 and invalidos == [("SEM-DADOS", "preencha custo, ou gramas e horas")]
+    revenda = next(p for p in produtos if p.sku == "REVENDA-1")
+    assert revenda.custo == 12.5 and revenda.horas == 0
+    assert set(revenda.precos) == {"shopee", "tiktok", "ml_classico", "amazon", "magalu", "elo7"}
+    arquivos = cat.exportar(produtos, cfg["carteira"], str(tmp_path / "saida"))
+    assert len(arquivos) == 7
+    shopee = cat.ler(str(tmp_path / "saida" / "shopee.csv"))
+    assert len(shopee) == 6 and shopee[0]["sku"] == "VASO-GEO-15"
+    nec, disp = cat.capacidade(cfg, produtos)
+    assert disp == 18 * 30 and nec > 0
+
+
+def test_numero_brasileiro():
+    from precificacao.catalogo import _num
+    assert _num("1.200") == 1200 and _num("1.234,56") == 1234.56 and _num("4,5") == 4.5
+    assert _num("4.5") == 4.5 and _num("R$ 12,90") == 12.9 and _num("") is None
+
+
+def test_lote_pula_publicados_e_usa_medidas_reais():
+    from shopee_plugin.lote import ajustar_item, pendentes
+    linhas = [{"sku": "A", "fotos": "a.jpg"}, {"sku": "B", "fotos": "b.jpg"}, {"sku": "C", "fotos": ""}]
+    assert [l["sku"] for l in pendentes(linhas, {"A": 1})] == ["B"]
+    item = ajustar_item({"weight": 0.8, "dimension": {}},
+                        {"sku": "B", "peso_g": "180", "comp_cm": "18", "larg_cm": "18", "alt_cm": "17"})
+    assert item["item_sku"] == "B" and item["weight"] == 0.18
+    assert item["dimension"] == {"package_length": 18, "package_width": 18, "package_height": 17}

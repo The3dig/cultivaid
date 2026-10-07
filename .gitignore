@@ -1,3 +1,5 @@
 .env
 shopee_tokens.json
 __pycache__/
+publicados_shopee.json
+precos/

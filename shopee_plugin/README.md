@@ -26,7 +26,20 @@ python -m shopee_plugin.publicar foto.jpg --custo 18.50                         
 ```
 Sem preço nem custo, usa o preço sugerido pelo Claude.
 
-## 3. Publicar pelo celular (Telegram)
+## 3. Publicar a carteira inteira (lote)
+
+Use a mesma planilha do catálogo (`python -m precificacao catalogo --modelo produtos.csv`):
+
+```bash
+python -m shopee_plugin.lote produtos.csv --limite 10      # mostra cada um e pergunta (s/N/q)
+python -m shopee_plugin.lote produtos.csv --sim            # publica tudo sem perguntar
+```
+- O preço vem da regra de precificação, e o peso e as medidas vêm da planilha (mais precisos que a estimativa pela foto).
+- O SKU vai junto no anúncio. Os produtos já publicados ficam em `publicados_shopee.json` e são pulados, então
+  é só acrescentar linhas na planilha e rodar de novo.
+- Cada produto passa pelo Claude uma vez, e isso é cobrado por uso na sua conta da API.
+
+## 4. Publicar pelo celular (Telegram)
 
 1. Crie um bot com o @BotFather e coloque o token em `TELEGRAM_BOT_TOKEN`.
 2. Coloque seu chat id em `TELEGRAM_CHAT_ID` (só você poderá usar o bot).

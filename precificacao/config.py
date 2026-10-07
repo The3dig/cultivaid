@@ -22,12 +22,16 @@ PADRAO = {
         "taxa_falha": 0.10,              # 10% das impressões dão errado e são refeitas
         "mao_de_obra_r_h": 30.0,         # valor da sua hora (fatiar, tirar suporte, lixar, embalar)
         "embalagem_r": 2.50,             # caixa/saco, plástico bolha, etiqueta
+        "impressoras": 1,                # quantas impressoras você tem
+        "horas_dia": 18,                 # horas por dia que cada uma imprime de verdade
     },
     # ---- Negócio ----
     "imposto": 0.06,                     # Simples Nacional anexo I ≈ 4–6%; MEI: use 0
     "margem": 0.20,                      # lucro desejado, % do preço de venda
     "lucro_minimo_r": 3.00,              # lucro mínimo em R$ por unidade
     "arredondar": True,                  # termina o preço em ,90
+    # Os canais da sua carteira (comando `catalogo`). Troque à vontade pelas chaves de "canais".
+    "carteira": ["shopee", "tiktok", "ml_classico", "amazon", "magalu", "elo7"],
     # ---- Canais ----
     # Cada faixa vale até o preço "ate" (null = sem limite):
     #   comissao = max(pct * preço, minimo) + fixo ; frete = custo de envio pago pelo vendedor.

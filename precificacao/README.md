@@ -40,6 +40,41 @@ AliExpress                    R$ 28,90     R$ 2,31   R$ 0,00   R$ 1,73    R$ 6,3
 Venda direta (Pix/cartão)     R$ 26,90     R$ 1,08   R$ 0,00   R$ 1,61    R$ 5,71     21%
 ```
 
+## Carteira: 100–500 produtos em 6 marketplaces
+
+Toda a carteira fica numa planilha só, com uma linha por produto. Ela abre no Excel ou no Google Planilhas.
+
+```bash
+python -m precificacao catalogo --modelo produtos.csv   # cria a planilha com 5 exemplos
+python -m precificacao catalogo produtos.csv            # precifica tudo nos 6 canais
+```
+
+| Coluna | Peça 3D | Produto comprado |
+|---|---|---|
+| `sku` | código único (ex.: `VASO-GEO-15`) | idem |
+| `nome` | nome curto | idem |
+| `material`, `gramas`, `horas` | do fatiador | vazio |
+| `minutos`, `extras` | acabamento e insumos (opcional) | vazio |
+| `custo` | vazio (é calculado) | custo da unidade |
+| `peso_g`, `comp_cm`, `larg_cm`, `alt_cm` | **embalado** | idem |
+| `estoque`, `vendas_mes` | estoque e venda mensal estimada | idem |
+| `fotos` | `fotos/a.jpg\|fotos/b.jpg` | idem |
+| `dica` | info para o anúncio (material, uso, personalização) | idem |
+
+Arquivos gerados na pasta `precos/`:
+- **`precos.csv`**: visão geral, com o preço e o lucro de cada produto em cada canal.
+- **um arquivo por canal** (`shopee.csv`, `tiktok.csv`...): sku, preço, estoque, peso e medidas. Serve para colar
+  na planilha de cadastro/edição em massa de cada marketplace (cada um tem o próprio modelo).
+
+O resumo também mostra o lucro médio por canal, os produtos que mais dão lucro, as linhas com dados faltando e
+a **capacidade**: quantas horas de impressão por mês as vendas estimadas pedem, comparadas ao que suas
+impressoras dão (`impressao.impressoras` e `impressao.horas_dia`). Quando passar de 85%, aparece o aviso de que é hora de outra impressora.
+
+Os 6 canais da carteira ficam em `carteira` no `precificacao.json`
+(padrão: Shopee, TikTok Shop, ML Clássico, Amazon, Magalu, Elo7). Para trocar algum, use `--canais`.
+
+Para publicar a carteira na Shopee de uma vez, use `python -m shopee_plugin.lote produtos.csv` (veja `shopee_plugin/README.md`).
+
 ## Ajuste para a sua realidade (importante)
 
 ```bash
