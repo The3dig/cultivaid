@@ -31,6 +31,7 @@ PADRAO = {
     # ---- Canais ----
     # Cada faixa vale até o preço "ate" (null = sem limite):
     #   comissao = max(pct * preço, minimo) + fixo ; frete = custo de envio pago pelo vendedor.
+    # "adicionais" valem em qualquer faixa: pct * preço, limitado a "teto" (R$) se houver.
     "canais": {
         "shopee": {
             "nome": "Shopee (CNPJ)",
@@ -79,6 +80,55 @@ PADRAO = {
                 {"ate": 78.99, "pct": 0.12, "minimo": 1.00, "fixo": 6.75},
                 {"ate": None, "pct": 0.12, "minimo": 1.00, "fixo": 0.00, "frete": 20.00},
             ],
+        },
+        "tiktok": {
+            "nome": "TikTok Shop",
+            # Tabela desde 15/07/2026. Novos vendedores: 0% de comissão por 60 dias (até R$ 17 mil).
+            "faixas": [
+                {"ate": 49.99, "pct": 0.10, "fixo": 4.00},
+                {"ate": None, "pct": 0.06, "fixo": 6.00},
+            ],
+            "adicionais": [
+                {"nome": "Programa de frete grátis", "pct": 0.06, "teto": 50.00},
+            ],
+        },
+        "tiktok_afiliado": {
+            "nome": "TikTok Shop + afiliado",
+            # Mesmo canal, vendendo por vídeo de afiliado/criador. A comissão do afiliado você define
+            # no Seller Center (costuma ficar entre 8% e 15%).
+            "faixas": [
+                {"ate": 49.99, "pct": 0.10, "fixo": 4.00},
+                {"ate": None, "pct": 0.06, "fixo": 6.00},
+            ],
+            "adicionais": [
+                {"nome": "Programa de frete grátis", "pct": 0.06, "teto": 50.00},
+                {"nome": "Afiliado", "pct": 0.10},
+            ],
+        },
+        "magalu": {
+            "nome": "Magalu",
+            # Comissão 10–18% conforme categoria (novos sellers: 9,9% por 3 meses) + R$ 5 por pedido.
+            # Desde 2026 o frete grátis não é mais bancado pelo Magalu: informe o seu em "frete".
+            "faixas": [{"ate": None, "pct": 0.16, "fixo": 5.00}],
+        },
+        "elo7": {
+            "nome": "Elo7",
+            # 18% exposição padrão (20% máxima) + R$ 3,99 por item; acima de R$ 79,90 + R$ 6 de frete.
+            "faixas": [
+                {"ate": 79.89, "pct": 0.18, "fixo": 3.99},
+                {"ate": None, "pct": 0.18, "fixo": 3.99, "frete": 6.00},
+            ],
+        },
+        "shein": {
+            "nome": "Shein",
+            # 18% na maioria das categorias (20% moda feminina), sem taxa fixa. Só CNPJ/MEI.
+            # Novos vendedores: 90 dias sem comissão.
+            "faixas": [{"ate": None, "pct": 0.18, "fixo": 0.00}],
+        },
+        "aliexpress": {
+            "nome": "AliExpress",
+            # 5–10% conforme categoria (casa/móveis 5%, moda/beleza 8%), sem mensalidade.
+            "faixas": [{"ate": None, "pct": 0.08, "fixo": 0.00}],
         },
         "direta": {
             "nome": "Venda direta (Pix/cartão)",

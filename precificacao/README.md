@@ -1,7 +1,8 @@
 # Precificação multicanal + custo de peças 3D
 
 Calcula **quanto custa** cada peça impressa e **por quanto vender** em cada canal
-(Shopee, Mercado Livre Clássico/Premium, Amazon, venda direta) para sobrar a margem que você quer,
+(Shopee, Mercado Livre Clássico/Premium, Amazon, TikTok Shop, Magalu, Elo7, Shein, AliExpress,
+venda direta) para sobrar a margem que você quer,
 já descontando comissão, taxa fixa por item, frete grátis pago por você e imposto.
 
 ## Uso rápido
@@ -30,6 +31,12 @@ Shopee (CNPJ)                 R$ 41,90    R$ 12,38   R$ 0,00   R$ 2,51    R$ 8,5
 Mercado Livre Clássico        R$ 41,90    R$ 11,95   R$ 0,00   R$ 2,51    R$ 8,94     21%
 Mercado Livre Premium         R$ 44,90    R$ 14,58   R$ 0,00   R$ 2,69    R$ 9,13     20%
 Amazon (DBA)                  R$ 40,90    R$ 11,41   R$ 0,00   R$ 2,45    R$ 8,54     21%
+TikTok Shop                   R$ 38,90    R$ 10,22   R$ 0,00   R$ 2,33    R$ 7,85     20%
+TikTok Shop + afiliado        R$ 46,90    R$ 16,19   R$ 0,00   R$ 2,81    R$ 9,40     20%
+Magalu                        R$ 40,90    R$ 11,54   R$ 0,00   R$ 2,45    R$ 8,41     21%
+Elo7                          R$ 40,90    R$ 11,35   R$ 0,00   R$ 2,45    R$ 8,60     21%
+Shein                         R$ 33,90     R$ 6,10   R$ 0,00   R$ 2,03    R$ 7,27     21%
+AliExpress                    R$ 28,90     R$ 2,31   R$ 0,00   R$ 1,73    R$ 6,36     22%
 Venda direta (Pix/cartão)     R$ 26,90     R$ 1,08   R$ 0,00   R$ 1,61    R$ 5,71     21%
 ```
 
@@ -51,6 +58,7 @@ Edite no arquivo:
 | `imposto` | alíquota sobre a venda (Simples ≈ 0.04–0.06; MEI: 0) |
 | `margem`, `lucro_minimo_r` | lucro desejado: % do preço e mínimo em R$ por unidade |
 | `canais.*.faixas` | comissão por faixa de preço: `pct`, `fixo`, `minimo`, `frete` |
+| `canais.*.adicionais` | taxas em qualquer faixa, com teto opcional: `pct`, `teto` (ex.: afiliado do TikTok) |
 
 Para desligar um canal: `"canais": {"ml_premium": {"ativo": false}}`. Vende como CPF na Shopee?
 Ligue `shopee_cpf` e desligue `shopee`.
@@ -71,6 +79,15 @@ para ,90, confere de novo para não cair numa faixa pior.
   ajuste pelo peso da peça ou use `--frete`).
 - **Amazon (DBA)**: comissão 8–15% conforme categoria (padrão 12%, mínimo R$ 1); taxa por item
   R$ 4,50 (< R$ 30), R$ 6,50 (R$ 30–49,99), R$ 6,75 (R$ 50–78,99); acima disso frete por peso (padrão R$ 20).
+- **TikTok Shop** (desde 15/07/2026): abaixo de R$ 50 → 10% + R$ 4; a partir de R$ 50 → 6% + R$ 6;
+  programa de frete grátis + 6% (teto R$ 50/item). A linha "+ afiliado" soma 10% para o criador
+  (ajuste em `tiktok_afiliado.adicionais`; costuma ser 8–15%). Novos vendedores: 0% por 60 dias.
+- **Magalu**: 10–18% conforme categoria (padrão 16%) + R$ 5 por pedido; novos sellers 9,9% por 3 meses.
+  O Magalu deixou de bancar o frete grátis — se você paga frete, use `--frete` ou ajuste `frete`.
+- **Elo7**: 18% (exposição padrão; 20% na máxima) + R$ 3,99 por item; acima de R$ 79,90 + R$ 6 de frete.
+- **Shein**: 18% na maioria das categorias (20% moda feminina), sem taxa fixa; só CNPJ/MEI;
+  90 dias sem comissão para novos.
+- **AliExpress**: 5–10% conforme categoria (padrão 8%), sem mensalidade.
 - **Venda direta**: 4% de taxa de maquininha/gateway.
 
 ## No plugin da Shopee

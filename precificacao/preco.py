@@ -1,4 +1,5 @@
 """Preço de venda por canal: cobre custo, comissão, frete, imposto e ainda deixa a margem desejada."""
+import itertools
 import math
 from dataclasses import dataclass
 
@@ -34,6 +35,9 @@ def simular(cfg: dict, canal: str, custo: float, preco: float, frete: float | No
     c = cfg["canais"][canal]
     f = _faixa(c["faixas"], preco)
     comissao = max(f["pct"] * preco, f.get("minimo", 0.0)) + f.get("fixo", 0.0)
+    # Taxas que valem em qualquer faixa (ex.: frete grátis do TikTok, comissão de afiliado), com teto opcional.
+    for a in c.get("adicionais", []):
+        comissao += min(a["pct"] * preco, a.get("teto") or math.inf)
     fr = f.get("frete", 0.0) if frete is None or not f.get("frete") else frete
     return Resultado(canal, c.get("nome", canal), round(preco, 2), round(comissao, 2), round(fr, 2),
                      round(cfg["imposto"] * preco, 2), round(custo, 2))
@@ -45,7 +49,11 @@ def _atinge(cfg: dict, r: Resultado) -> bool:
 
 def _candidatos(cfg: dict, canal: str, custo: float, frete: float | None):
     """Preço mínimo que atinge a meta em cada faixa (a comissão é linear dentro da faixa)."""
-    faixas = cfg["canais"][canal]["faixas"]
+    c = cfg["canais"][canal]
+    faixas = c["faixas"]
+    # Cada adicional entra como % (abaixo do teto) ou como valor fixo (no teto).
+    combos = [(sum(p for p, _ in comb), sum(t for _, t in comb)) for comb in itertools.product(
+        *[[(a["pct"], 0.0)] + ([(0.0, a["teto"])] if a.get("teto") else []) for a in c.get("adicionais", [])])]
     inicio = 0.01
     for f in faixas:
         fr = (f.get("frete", 0.0) if frete is None or not f.get("frete") else frete)
@@ -53,9 +61,10 @@ def _candidatos(cfg: dict, canal: str, custo: float, frete: float | None):
         pct, imp, m = f["pct"], cfg["imposto"], cfg["margem"]
         for comissao_pct, comissao_fixa in ((pct, 0.0), (0.0, f.get("minimo", 0.0))):
             for meta_pct, meta_fixa in ((m, 0.0), (0.0, cfg["lucro_minimo_r"])):
-                den = 1 - comissao_pct - imp - meta_pct
-                if den > 0:
-                    yield max(inicio, (fixos + comissao_fixa + meta_fixa) / den)
+                for ad_pct, ad_fixo in combos:
+                    den = 1 - comissao_pct - ad_pct - imp - meta_pct
+                    if den > 0:
+                        yield max(inicio, (fixos + comissao_fixa + ad_fixo + meta_fixa) / den)
         yield inicio
         if f.get("ate") is None:
             return

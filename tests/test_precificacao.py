@@ -97,3 +97,21 @@ def test_plugin_usa_preco_do_custo():
         _, item = publicar.preparar(api, ["f.jpg"], preco=55.0, custo=18.5)
         assert item["original_price"] == 55.0           # preço informado continua mandando
         assert "lucro R$" in publicar.resumo(ANUNCIO, item, 18.5)
+
+
+def test_tiktok_frete_gratis_com_teto(cfg):
+    assert simular(cfg, "tiktok", 10, 40).comissao == 4.00 + 4.00 + 2.40         # 10% + R$ 4 + 6%
+    assert simular(cfg, "tiktok", 10, 1000).comissao == 60.00 + 6.00 + 50.00     # 6% + R$ 6 + teto R$ 50
+    assert simular(cfg, "tiktok_afiliado", 10, 100).comissao == 6 + 6 + 6 + 10   # + 10% do afiliado
+
+
+def test_tiktok_preco_alto_usa_teto(cfg):
+    cfg["arredondar"] = False
+    r = precificar(cfg, "tiktok", 600)
+    menos = simular(cfg, "tiktok", 600, r.preco - 0.01)
+    assert r.lucro >= cfg["margem"] * r.preco - 1e-6 and menos.lucro < cfg["margem"] * menos.preco
+
+
+def test_elo7_frete_acima_de_79_90(cfg):
+    assert simular(cfg, "elo7", 10, 50).frete == 0
+    assert simular(cfg, "elo7", 10, 79.90).frete == 6.00
