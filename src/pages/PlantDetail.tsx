@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { photoUrl, supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
+import { Photo, usePhotoUrl } from '../lib/photos'
 import {
   CARE_TYPES, addObservation, careInfo, logCare, moveToContainer, must, uploadPhoto,
 } from '../lib/care'
 import { fmtDate, fmtDateTime, todayISO } from '../lib/dates'
 import { fetchContainers, fetchSpecies, useLoad } from '../lib/hooks'
 import {
-  ESTAGIOS, SAUDES,
+  ESTADOS_FINAIS, ESTAGIOS, SAUDES, type EstadoFinal,
   type CareEvent, type CareTipo, type Container, type ContainerMove, type Observation,
   type Plant, type PlantPhoto, type Saude, type Species,
 } from '../lib/types'
@@ -57,19 +58,25 @@ export default function PlantDetail() {
   if (!data) return <ErrorBox error={error} />
   const { plant, species, containers } = data
   const container = containers.find((c) => c.id === plant.container_id)
-  const foto = photoUrl(plant.foto_path)
   const close = () => { setSheet(null); reload() }
 
   function openCare(t: CareTipo) { setCareTipo(t); setSheet('care') }
 
   async function changeEstagio(estagio: string) {
-    must(await supabase.from('plants').update({ estagio }).eq('id', plant.id))
-    must(await supabase.from('observations').insert({ plant_id: plant.id, texto: `Estágio alterado para ${estagio}.` }))
+    try {
+      must(await supabase.from('plants').update({ estagio }).eq('id', plant.id))
+      must(await supabase.from('observations').insert({ plant_id: plant.id, texto: `Estágio alterado de ${plant.estagio} para ${estagio}.` }))
+    } catch (e) {
+      alert(`Não foi possível alterar o estágio: ${(e as Error).message}`)
+    }
     reload()
   }
 
   async function remove() {
-    if (!confirm(`Excluir ${plant.nome_comum} e todo o histórico? Isso não pode ser desfeito.`)) return
+    const msg = `Excluir apaga ${plant.nome_comum} (${plant.codigo_publico}) e TODO o histórico, sem volta.\n\n` +
+      'Se a planta morreu ou terminou o ciclo, use “Encerrar ciclo”: o histórico fica guardado.\n\n' +
+      `Para excluir mesmo assim (ex.: cadastro feito por engano), digite ${plant.codigo_publico}:`
+    if (prompt(msg)?.trim().toUpperCase() !== plant.codigo_publico) return
     must(await supabase.from('plants').delete().eq('id', plant.id))
     nav('/plantas', { replace: true })
   }
@@ -79,7 +86,7 @@ export default function PlantDetail() {
       <TopBar title={plant.nome_comum} back="/plantas"
         right={<Link className="btn" to={`/plantas/${plant.id}/editar`}>Editar</Link>} />
       <ErrorBox error={error} />
-      {foto ? <img className="hero" src={foto} alt={plant.nome_comum} /> : <div className="hero-empty">🌱</div>}
+      <Photo path={plant.foto_path} className="hero" alt={plant.nome_comum} fallback={<div className="hero-empty">🌱</div>} />
 
       <div style={{ margin: '12px 0' }}>
         <div className="muted"><i>{plant.nome_cientifico ?? 'Espécie não definida'}</i></div>
@@ -88,7 +95,11 @@ export default function PlantDetail() {
           <SaudeBadge saude={plant.saude} />
           <span className="badge">{plant.estagio}</span>
           <span className="badge">ID: {plant.status_identificacao}{plant.confianca != null ? ` · ${plant.confianca}%` : ''}</span>
-          {!plant.ativa && <span className="badge late">ciclo encerrado</span>}
+          {!plant.ativa && (
+            <span className="badge late">
+              encerrada{plant.estado_final ? `: ${plant.estado_final}` : ''} · {fmtDate(plant.encerrada_em)}
+            </span>
+          )}
         </div>
         <div className="small muted" style={{ marginTop: 6 }}>
           🪴 {container ? `${container.nome}${container.local ? ` — ${container.local}` : ''}` : 'sem vaso'} ·
@@ -138,11 +149,7 @@ export default function PlantDetail() {
         ? <Empty icon="📷">Sem fotos ainda. Fotos periódicas ajudam a comparar a evolução.</Empty>
         : (
           <div className="photos">
-            {data.photos.map((ph) => (
-              <a key={ph.id} href={photoUrl(ph.storage_path)!} target="_blank" rel="noreferrer" title={fmtDate(ph.tirada_em)}>
-                <img src={photoUrl(ph.storage_path)!} alt={ph.legenda ?? ''} loading="lazy" />
-              </a>
-            ))}
+            {data.photos.map((ph) => <PhotoLink key={ph.id} photo={ph} />)}
           </div>
         ))}
       {tab === 'guia' && <Guide species={species} />}
@@ -162,7 +169,11 @@ export default function PlantDetail() {
         <div className="two">
           {plant.ativa
             ? <button onClick={() => setSheet('encerrar')}>🏁 Encerrar ciclo</button>
-            : <button onClick={async () => { must(await supabase.from('plants').update({ ativa: true, encerrada_em: null, motivo_encerramento: null }).eq('id', plant.id)); reload() }}>↩️ Reativar</button>}
+            : <button onClick={async () => {
+                must(await supabase.from('plants').update({ ativa: true, encerrada_em: null, motivo_encerramento: null, estado_final: null }).eq('id', plant.id))
+                must(await supabase.from('observations').insert({ plant_id: plant.id, texto: 'Planta reativada (ciclo reaberto).' }))
+                reload()
+              }}>↩️ Reativar</button>}
           <button className="danger" onClick={remove}>🗑️ Excluir</button>
         </div>
       </div>
@@ -173,6 +184,16 @@ export default function PlantDetail() {
       {sheet === 'vaso' && <MoveSheet plant={plant} species={species} containers={containers} onDone={close} onClose={() => setSheet(null)} />}
       {sheet === 'encerrar' && <EndSheet plant={plant} onDone={close} onClose={() => setSheet(null)} />}
     </>
+  )
+}
+
+function PhotoLink({ photo }: { photo: PlantPhoto }) {
+  const url = usePhotoUrl(photo.storage_path)
+  if (!url) return <div className="thumb" style={{ width: '100%', aspectRatio: '1', height: 'auto' }}>📷</div>
+  return (
+    <a href={url} target="_blank" rel="noreferrer" title={`${fmtDate(photo.tirada_em)}${photo.legenda ? ` — ${photo.legenda}` : ''}`}>
+      <img src={url} alt={photo.legenda ?? ''} loading="lazy" />
+    </a>
   )
 }
 
@@ -189,7 +210,7 @@ function Timeline({ data }: { data: Awaited<ReturnType<typeof load>> }) {
     })),
     ...data.photos.map((p) => ({
       key: 'p' + p.id, date: p.tirada_em, icon: '📸',
-      body: <>{p.legenda ?? 'Foto'}<br /><img src={photoUrl(p.storage_path)!} alt="" loading="lazy" /></>,
+      body: <>{p.legenda ?? 'Foto'}<br /><Photo path={p.storage_path} alt="" loading="lazy" /></>,
     })),
     ...data.moves.map((m) => ({
       key: 'm' + m.id, date: m.data, icon: '🪴',
@@ -373,21 +394,34 @@ function MoveSheet({ plant, species, containers, onDone, onClose }: SheetProps &
 }
 
 function EndSheet({ plant, onDone, onClose }: SheetProps) {
-  const [motivo, setMotivo] = useState('Ciclo concluído (colheita final)')
+  const [estado, setEstado] = useState<EstadoFinal>(plant.saude === 'crítica' ? 'morta' : 'colhida')
+  const [detalhe, setDetalhe] = useState('')
   const [data, setData] = useState(todayISO())
   const { busy, error, run } = useSubmit(onDone)
+  const label = ESTADOS_FINAIS.find((e) => e.valor === estado)!.label
   return (
     <Sheet title="🏁 Encerrar ciclo" onClose={onClose}>
       <form onSubmit={run(async () => {
-        must(await supabase.from('plants').update({ ativa: false, encerrada_em: data, motivo_encerramento: motivo }).eq('id', plant.id))
+        const motivo = detalhe ? `${label} — ${detalhe}` : label
+        must(await supabase.from('plants').update({ ativa: false, encerrada_em: data, estado_final: estado, motivo_encerramento: motivo }).eq('id', plant.id))
+        must(await supabase.from('observations').insert({
+          plant_id: plant.id, texto: `Ciclo encerrado: ${motivo}.`, data: new Date(data + 'T12:00:00').toISOString(),
+        }))
         must(await supabase.from('tasks').update({ concluida_em: new Date().toISOString() }).eq('plant_id', plant.id).is('concluida_em', null))
       })}>
-        <p className="small muted">A planta sai da lista ativa e da agenda, mas todo o histórico é mantido.</p>
+        <p className="small muted">
+          Nada é apagado: cadastro, fotos, cuidados, observações e histórico ficam guardados. A planta só sai da lista
+          ativa e da agenda.
+        </p>
         <div className="field">
-          <label>Motivo</label>
-          <select value={motivo} onChange={(e) => setMotivo(e.target.value)}>
-            {['Ciclo concluído (colheita final)', 'Planta morreu', 'Doada', 'Descartada', 'Outro'].map((m) => <option key={m}>{m}</option>)}
+          <label>Estado final</label>
+          <select value={estado} onChange={(e) => setEstado(e.target.value as EstadoFinal)}>
+            {ESTADOS_FINAIS.map((e) => <option key={e.valor} value={e.valor}>{e.label}</option>)}
           </select>
+        </div>
+        <div className="field">
+          <label>Detalhe (opcional)</label>
+          <input value={detalhe} onChange={(e) => setDetalhe(e.target.value)} placeholder={estado === 'morta' ? 'Ex.: apodreceu a raiz, excesso de água' : ''} />
         </div>
         <div className="field">
           <label>Data</label>

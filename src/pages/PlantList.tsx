@@ -55,7 +55,7 @@ export default function PlantList() {
               <div className="grow" style={{ minWidth: 0 }}>
                 <b>{p.favorita ? '⭐ ' : ''}{p.nome_comum}</b>
                 <div className="small muted"><i>{p.nome_cientifico ?? 'espécie não definida'}</i></div>
-                <div className="small muted">{p.codigo_publico} · {p.estagio}</div>
+                <div className="small muted">{p.codigo_publico} · {p.ativa ? p.estagio : `encerrada: ${p.estado_final ?? '—'}`}</div>
               </div>
               <SaudeBadge saude={p.saude} />
             </Link>

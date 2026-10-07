@@ -7,22 +7,38 @@ import type { SeedCell, SeedTray } from '../lib/types'
 import { Empty, ErrorBox, Sheet, TopBar } from '../components/ui'
 
 async function load() {
-  const [trays, cells] = await Promise.all([
+  // contagens calculadas no banco (view seed_tray_stats): não esbarra no limite de linhas da API
+  const [trays, stats] = await Promise.all([
     supabase.from('seed_trays').select('*').order('created_at', { ascending: false }).then(must),
-    supabase.from('seed_cells').select('tray_id, status').then(must),
+    supabase.from('seed_tray_stats').select('*').then(must),
   ])
-  return { trays: trays as SeedTray[], cells: cells as Pick<SeedCell, 'tray_id' | 'status'>[] }
+  return { trays: trays as SeedTray[], stats: stats as (Counts & { tray_id: string })[] }
 }
 
-export function trayStats(cells: Pick<SeedCell, 'status'>[]) {
+type Counts = Record<'vazias' | 'plantadas' | 'germinadas' | 'mudas' | 'perdidas' | 'transplantadas', number>
+
+export function countCells(cells: Pick<SeedCell, 'status'>[]): Counts {
   const c = (s: string) => cells.filter((x) => x.status === s).length
-  const plantadas = c('plantada'), germinadas = c('germinada'), perdidas = c('perdida'), transplantadas = c('transplantada')
-  const semeadas = plantadas + germinadas + perdidas + transplantadas
-  const sucesso = germinadas + transplantadas
   return {
-    vazias: c('vazia'), plantadas, germinadas, perdidas, transplantadas,
-    taxa: semeadas ? Math.round((sucesso / semeadas) * 100) : null,
+    vazias: c('vazia'), plantadas: c('plantada'), germinadas: c('germinada'),
+    mudas: c('muda'), perdidas: c('perdida'), transplantadas: c('transplantada'),
   }
+}
+
+/** Germinaram (germinada, muda, transplantada) de quantas foram semeadas. */
+export function trayStats(c: Counts) {
+  const germinaram = c.germinadas + c.mudas + c.transplantadas
+  return { ...c, germinaram, semeadas: germinaram + c.plantadas + c.perdidas }
+}
+
+export function TrayCounts({ s }: { s: ReturnType<typeof trayStats> }) {
+  return (
+    <>
+      ⬜ {s.vazias} vazias · 🟤 {s.plantadas} semeadas · 🌱 {s.germinadas} germinadas · 🌿 {s.mudas} mudas ·
+      🪴 {s.transplantadas} transplantadas · ❌ {s.perdidas} perdidas
+      {s.semeadas > 0 && <> · <b>{s.germinaram} de {s.semeadas} germinaram</b></>}
+    </>
+  )
 }
 
 export default function Trays() {
@@ -54,14 +70,14 @@ export default function Trays() {
       {data && data.trays.length === 0 && <Empty icon="🌱">Nenhuma sementeira ainda.</Empty>}
       <div className="list">
         {data?.trays.map((t) => {
-          const s = trayStats(data.cells.filter((c) => c.tray_id === t.id))
+          const row = data.stats.find((x) => x.tray_id === t.id)
+          const s = trayStats(row ?? countCells([]))
           return (
             <Link key={t.id} to={`/sementeiras/${t.id}`} className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="row spread"><b>{t.nome}</b><span className="badge">{t.linhas * t.colunas} células</span></div>
               <div className="small muted">{t.local ?? ''}</div>
               <div className="small" style={{ marginTop: 6 }}>
-                🟤 {s.plantadas} plantadas · 🌱 {s.germinadas} germinadas · 🪴 {s.transplantadas} transplantadas · ❌ {s.perdidas} perdidas
-                {s.taxa != null && <> · <b>{s.taxa}% sucesso</b></>}
+                <TrayCounts s={s} />
               </div>
             </Link>
           )

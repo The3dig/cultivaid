@@ -10,7 +10,7 @@ import {
 } from '../lib/types'
 import { ErrorBox, TopBar } from '../components/ui'
 
-type Form = Omit<Plant, 'id' | 'codigo_publico' | 'created_at' | 'updated_at' | 'foto_path' | 'foto_em' | 'ativa' | 'encerrada_em' | 'motivo_encerramento'>
+type Form = Omit<Plant, 'id' | 'codigo_publico' | 'created_at' | 'updated_at' | 'foto_path' | 'foto_em' | 'ativa' | 'encerrada_em' | 'motivo_encerramento' | 'estado_final'>
 
 const EMPTY: Form = {
   nome_comum: '', nome_cientifico: null, species_id: null, confianca: null,
@@ -43,7 +43,7 @@ export default function PlantForm() {
     supabase.from('plants').select('*').eq('id', id).single().then(({ data, error }) => {
       if (error) return setError(error.message)
       const { id: _id, codigo_publico: _c, created_at: _a, updated_at: _u, foto_path: _f, foto_em: _fe,
-        ativa: _at, encerrada_em: _e, motivo_encerramento: _m, ...rest } = data as Plant
+        ativa: _at, encerrada_em: _e, motivo_encerramento: _m, estado_final: _ef, ...rest } = data as Plant
       setForm(rest)
     })
   }, [id, params])
@@ -82,17 +82,28 @@ export default function PlantForm() {
         nav(`/plantas/${id}`, { replace: true })
       } else {
         const plant = must(await supabase.from('plants').insert(form).select().single()) as Plant
-        if (plant.container_id) {
-          must(await supabase.from('plant_container_history').insert({
-            plant_id: plant.id, to_container_id: plant.container_id, motivo: 'Cadastro inicial',
-          }))
+        // A planta já existe a partir daqui: falhas nos passos seguintes não
+        // podem levar o usuário a salvar de novo (criaria uma planta duplicada).
+        const falhas: string[] = []
+        const passo = async (nome: string, fn: () => Promise<unknown>) => {
+          try { await fn() } catch (err) { falhas.push(`${nome}: ${(err as Error).message}`) }
         }
-        const sp = lookups.data?.species.find((s) => s.id === plant.species_id) ?? null
-        await initialTasks(plant, sp)
-        if (foto) await uploadPhoto(plant, foto, 'Foto do cadastro')
         const celula = params.get('celula')
         if (celula) {
-          must(await supabase.from('seed_cells').update({ status: 'transplantada', plant_id: plant.id }).eq('id', celula))
+          await passo('ligar à célula da sementeira', async () => must(await supabase.from('seed_cells')
+            .update({ status: 'transplantada', plant_id: plant.id }).eq('id', celula)))
+        }
+        if (plant.container_id) {
+          await passo('histórico do vaso', async () => must(await supabase.from('plant_container_history').insert({
+            plant_id: plant.id, to_container_id: plant.container_id,
+            motivo: celula ? `Transplante da sementeira (${form.origem ?? ''})` : 'Cadastro inicial',
+          })))
+        }
+        const sp = lookups.data?.species.find((s) => s.id === plant.species_id) ?? null
+        await passo('lembretes iniciais', () => initialTasks(plant, sp))
+        if (foto) await passo('foto', () => uploadPhoto(plant, foto, 'Foto do cadastro'))
+        if (falhas.length) {
+          alert(`Planta ${plant.codigo_publico} criada, mas algo falhou:\n- ${falhas.join('\n- ')}\n\nComplete pela página da planta (não cadastre de novo).`)
         }
         nav(`/plantas/${plant.id}`, { replace: true })
       }

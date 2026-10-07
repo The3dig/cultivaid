@@ -1,5 +1,7 @@
-import { useParams } from 'react-router-dom'
-import { photoUrl, supabase } from '../lib/supabase'
+import { Navigate, useParams } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
+import { supabase } from '../lib/supabase'
+import { Photo } from '../lib/photos'
 import { careInfo } from '../lib/care'
 import { fmtDate } from '../lib/dates'
 import { useLoad } from '../lib/hooks'
@@ -22,23 +24,36 @@ interface PublicData {
 
 export default function PublicPlant() {
   const { codigo = '' } = useParams()
+  const { session, loading: authLoading } = useAuth()
   const { data, error, loading } = useLoad(async () => {
+    // Dono logado escaneando a própria etiqueta: abre o registro completo
+    if (session) {
+      const { data: own } = await supabase.from('plants').select('id').eq('codigo_publico', codigo.toUpperCase()).maybeSingle()
+      if (own) return { ownId: own.id as string, pub: null }
+    }
     const { data, error } = await supabase.rpc('public_plant', { p_codigo: codigo })
     if (error) throw new Error(error.message)
-    return data as PublicData | null
-  }, [codigo])
+    return { ownId: null, pub: data as PublicData | null }
+  }, [codigo, session?.user.id, authLoading])
 
-  if (loading) return <div className="empty">Carregando…</div>
+  if (loading || authLoading) return <div className="empty">Carregando…</div>
+  if (data?.ownId) return <Navigate to={`/plantas/${data.ownId}`} replace />
+  return <PublicView codigo={codigo} data={data?.pub ?? null} error={error} />
+}
+
+function PublicView({ codigo, data, error }: { codigo: string; data: PublicData | null; error: string | null }) {
   if (error || !data) {
     return (
       <main className="app">
         <div className="brand"><div className="logo">🌱</div><h1>Jardim Vivo</h1></div>
-        <div className="empty">Registro <b>{codigo}</b> não encontrado ou não está público.</div>
+        <div className="empty">
+          Registro <b>{codigo}</b> não encontrado ou não está público.
+          <p className="small">É uma planta sua? <a href="/">Entre na sua conta</a> e escaneie de novo.</p>
+        </div>
       </main>
     )
   }
 
-  const foto = photoUrl(data.foto_path)
   const cuidados: [string, string | null][] = data.especie ? [
     ['☀️ Luz', data.especie.luminosidade], ['💧 Rega', data.especie.rega],
     ['🪨 Substrato', data.especie.substrato], ['🪱 Adubação', data.especie.adubacao], ['💡 Dica', data.especie.dica],
@@ -55,7 +70,7 @@ export default function PublicPlant() {
         <span className="badge">{data.estagio}</span>
         {data.confianca != null && <span className="badge">confiança {data.confianca}%</span>}
       </div>
-      {foto ? <img className="hero" src={foto} alt={data.nome_comum} /> : <div className="hero-empty">🌱</div>}
+      <Photo path={data.foto_path} className="hero" alt={data.nome_comum} fallback={<div className="hero-empty">🌱</div>} />
       <p className="small muted">Atualizado em {fmtDate(data.atualizado_em)}</p>
 
       {cuidados.some(([, v]) => v) && <h2>Cuidados essenciais</h2>}

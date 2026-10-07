@@ -8,8 +8,3 @@ export const supabaseConfigured = Boolean(url && key)
 export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing-key')
 
 export const PHOTO_BUCKET = 'plant-photos'
-
-export function photoUrl(path: string | null | undefined): string | null {
-  if (!path) return null
-  return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl
-}

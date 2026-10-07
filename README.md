@@ -37,6 +37,7 @@ Os dados ficam no **Supabase**.
 No painel do Supabase, abra **SQL Editor** e execute, nesta ordem:
 1. `supabase/migrations/001_jardim_vivo_mvp.sql` (tabelas, segurança, função pública, bucket de fotos)
 2. `supabase/migrations/002_especies_iniciais.sql` (catálogo inicial com 12 espécies)
+3. `supabase/migrations/003_seguranca_piloto.sql` (RLS reforçada, fotos privadas, código JV protegido, estado final)
 
 > Se já existir a tabela `plants` criada pelo `teste_cultiva.py`, ela é **renomeada para `plants_legacy`**
 > (nenhum dado é apagado). O script `teste_cultiva.py` não funciona com o novo esquema: agora cada planta
@@ -48,7 +49,7 @@ Ou use a CLI: `npx supabase link` e depois `npx supabase db push`.
 
 ### 2. App
 ```bash
-cp .env.example .env.local   # preencha a URL e a chave publishable/anon do projeto
+cp .env.example .env.local   # URL e chave publishable/anon do projeto + VITE_PUBLIC_URL (endereço gravado nos QR)
 npm install
 npm run dev                  # http://localhost:5173
 ```
@@ -58,8 +59,15 @@ npm run dev                  # http://localhost:5173
 já tratam as rotas. Defina `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` nas variáveis de ambiente do serviço.
 Depois, no celular: Chrome → ⋮ → **Instalar app**, ou Safari → Compartilhar → **Adicionar à Tela de Início**.
 
-### Desenvolvimento local completo (opcional)
+### Desenvolvimento local e testes
 Com Docker: `npx supabase start` sobe um Supabase local e aplica as migrações.
+
+```bash
+npm test               # typecheck + testes de segurança (RLS, fotos privadas, acesso entre usuários)
+npm run dev            # em outro terminal
+npm run test:e2e       # fluxo do piloto no navegador (bandeja 200 células → muda → vaso → planta)
+```
+Os testes criam usuários e se recusam a rodar fora do Supabase local.
 
 ## Estrutura
 ```

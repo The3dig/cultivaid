@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { must } from '../lib/care'
 import { useLoad } from '../lib/hooks'
-import { publicPlantUrl, qrDataUrl } from '../lib/qr'
+import { publicBaseIsLocal, publicPlantUrl, qrDataUrl } from '../lib/qr'
 import type { Plant } from '../lib/types'
 import { ErrorBox } from '../components/ui'
 
@@ -42,9 +42,17 @@ export default function QrLabel() {
           O QR Code leva ao endereço do registro <b>{plant.codigo_publico}</b>. As informações ficam no banco e podem ser
           atualizadas sem reimprimir. Se a etiqueta molhar ou se perder, basta reimprimir — o código da planta não muda.
         </p>
+        <p className="small">Endereço gravado no QR: <code>{publicPlantUrl(plant.codigo_publico)}</code></p>
+        {publicBaseIsLocal && (
+          <div className="error">
+            Atenção: o QR aponta para um endereço local, que não abre em outro aparelho. Configure
+            <code> VITE_PUBLIC_URL</code> com o endereço definitivo do app antes de imprimir etiquetas.
+          </div>
+        )}
         {!plant.publica && (
           <div className="notice" style={{ marginBottom: 12 }}>
-            A página pública desta planta está desativada: quem escanear verá “registro não público”.
+            Planta privada: escaneando com o seu celular (logado) abre o registro completo; outras pessoas veem
+            “registro não público”.
             <div style={{ marginTop: 8 }}><button onClick={tornarPublica}>Ativar página pública</button></div>
           </div>
         )}

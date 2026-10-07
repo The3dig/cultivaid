@@ -1,5 +1,5 @@
 import { supabase, PHOTO_BUCKET } from './supabase'
-import { addDays, todayISO } from './dates'
+import { addDays, toISODate, todayISO } from './dates'
 import type { CareTipo, Plant, Saude, Species, Task } from './types'
 
 export const CARE_TYPES: { tipo: CareTipo; icon: string; label: string }[] = [
@@ -105,7 +105,9 @@ export async function logCare(
     data: opts.data ?? new Date().toISOString(),
   }))
 
-  const hoje = todayISO()
+  // o próximo lembrete conta a partir da data em que o cuidado foi feito
+  const base = opts.data ? toISODate(new Date(opts.data)) : todayISO()
+  const hoje = base < todayISO() ? base : todayISO()
   switch (tipo) {
     case 'rega':
       await closeOpenTasks(plant.id, 'rega')
@@ -154,8 +156,10 @@ async function compressImage(file: File, maxSide = 1600): Promise<Blob> {
 export async function uploadPhoto(plant: Plant, file: File, legenda?: string) {
   const uid = await currentUserId()
   const blob = await compressImage(file)
-  const path = `${uid}/${plant.id}/${Date.now()}.jpg`
-  must(await supabase.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' }))
+  const type = blob.type || 'image/jpeg'
+  const ext = ({ 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic', 'image/heif': 'heif' } as Record<string, string>)[type] ?? 'jpg'
+  const path = `${uid}/${plant.id}/${Date.now()}.${ext}`
+  must(await supabase.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: type }))
   const agora = new Date().toISOString()
   must(await supabase.from('plant_photos').insert({ plant_id: plant.id, storage_path: path, legenda: legenda || null, tirada_em: agora }))
   must(await supabase.from('plants').update({ foto_path: path, foto_em: agora }).eq('id', plant.id))

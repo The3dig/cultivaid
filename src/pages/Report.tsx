@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { photoUrl, supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
+import { Photo } from '../lib/photos'
 import { must } from '../lib/care'
 import { fmtDate, todayISO } from '../lib/dates'
 import { fetchSpecies, useLoad } from '../lib/hooks'
@@ -71,7 +72,6 @@ export default function Report() {
 
   if (!data) return <main className="app">{error ? <ErrorBox error={error} /> : 'Carregando…'}</main>
   const { plant, tasks, obs, species: sp } = data
-  const foto = photoUrl(plant.foto_path)
   const proxima = tasks[0]
   const proxAvaliacao = tasks.find((t) => t.tipo === 'avaliação' || t.tipo === 'foto')
   const riscos = [
@@ -130,7 +130,7 @@ export default function Report() {
         </div>
         <div className="rgrid">
           <div>
-            {foto ? <img className="rfoto" src={foto} alt="" /> : <div className="rfoto">🌱</div>}
+            <Photo path={plant.foto_path} className="rfoto" alt="" fallback={<div className="rfoto">🌱</div>} />
             {qr && <div style={{ textAlign: 'center', marginTop: 6 }}><img src={qr} alt="" style={{ width: '28mm' }} /><div className="slogan">Escaneie para ver o registro atualizado</div></div>}
           </div>
           <div>

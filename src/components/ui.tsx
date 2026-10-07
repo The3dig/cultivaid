@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { photoUrl } from '../lib/supabase'
+import { Photo } from '../lib/photos'
 import { daysBetween, relativeDay, todayISO } from '../lib/dates'
 import { TASK_ICONS, completeTask, logCare, postponeTask } from '../lib/care'
 import type { Plant, Saude, Species, Task } from '../lib/types'
@@ -10,10 +10,7 @@ export function SaudeBadge({ saude }: { saude: Saude }) {
 }
 
 export function PlantThumb({ plant }: { plant: Pick<Plant, 'foto_path' | 'nome_comum'> }) {
-  const url = photoUrl(plant.foto_path)
-  return url
-    ? <img className="thumb" src={url} alt={plant.nome_comum} loading="lazy" />
-    : <div className="thumb">🌱</div>
+  return <Photo path={plant.foto_path} className="thumb" alt={plant.nome_comum} loading="lazy" fallback={<div className="thumb">🌱</div>} />
 }
 
 export function TopBar({ title, back, right }: { title: string; back?: string | boolean; right?: ReactNode }) {

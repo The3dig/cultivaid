@@ -7,7 +7,8 @@ export type Dificuldade = 'fácil' | 'média' | 'difícil'
 export type CareTipo =
   | 'rega' | 'adubação' | 'húmus' | 'poda' | 'transplante'
   | 'colheita' | 'floração' | 'tratamento' | 'limpeza' | 'outro'
-export type CellStatus = 'vazia' | 'plantada' | 'germinada' | 'perdida' | 'transplantada'
+export type CellStatus = 'vazia' | 'plantada' | 'germinada' | 'muda' | 'perdida' | 'transplantada'
+export type EstadoFinal = 'colhida' | 'morta' | 'doada' | 'descartada' | 'outro'
 
 export const SAUDES: Saude[] = ['saudável', 'atenção', 'crítica']
 export const ESTAGIOS: Estagio[] = [
@@ -16,7 +17,14 @@ export const ESTAGIOS: Estagio[] = [
 export const STATUS_ID: StatusIdentificacao[] = ['pendente', 'confirmado', 'ia', 'contestado']
 export const DIFICULDADES: Dificuldade[] = ['fácil', 'média', 'difícil']
 export const CONTAINER_TIPOS = ['vaso', 'jardineira', 'canteiro', 'floreira', 'garrafa', 'saco de cultivo', 'outro']
-export const CELL_STATUS: CellStatus[] = ['vazia', 'plantada', 'germinada', 'perdida', 'transplantada']
+export const CELL_STATUS: CellStatus[] = ['vazia', 'plantada', 'germinada', 'muda', 'perdida', 'transplantada']
+export const ESTADOS_FINAIS: { valor: EstadoFinal; label: string }[] = [
+  { valor: 'morta', label: 'Planta morreu' },
+  { valor: 'colhida', label: 'Ciclo concluído (colheita final)' },
+  { valor: 'doada', label: 'Doada' },
+  { valor: 'descartada', label: 'Descartada' },
+  { valor: 'outro', label: 'Outro' },
+]
 
 export interface Species {
   id: string
@@ -81,6 +89,7 @@ export interface Plant {
   publica: boolean
   ativa: boolean
   encerrada_em: string | null
+  estado_final: EstadoFinal | null
   motivo_encerramento: string | null
   notas: string | null
   created_at: string

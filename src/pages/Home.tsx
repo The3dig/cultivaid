@@ -41,6 +41,12 @@ export default function Home() {
       <h1>🌱 Jardim Vivo</h1>
       <p className="subtitle">Conheça • Cuide • Veja Florescer</p>
       <ErrorBox error={error} />
+      {plants.length > 0 && (
+        <div className="two" style={{ marginBottom: 12 }}>
+          <Link className="btn primary" to="/plantas/nova">+ Nova planta</Link>
+          <Link className="btn" to="/sementeiras">🌱 Novo plantio em bandeja</Link>
+        </div>
+      )}
 
       <div className="stats">
         <Link className="stat" to="/plantas"><b>{plants.length}</b><span>plantas</span></Link>
@@ -60,7 +66,8 @@ export default function Home() {
       {plants.length === 0 ? (
         <Empty icon="🪴">
           Nenhuma planta ainda.<br />
-          <Link className="btn primary" style={{ marginTop: 12 }} to="/plantas/nova">Cadastrar primeira planta</Link>
+          <Link className="btn primary" style={{ marginTop: 12 }} to="/plantas/nova">Cadastrar primeira planta</Link><br />
+          <Link className="btn" style={{ marginTop: 8 }} to="/sementeiras">🌱 Registrar plantio em bandeja</Link>
         </Empty>
       ) : paraHoje.length === 0 ? (
         <div className="card muted">Nada pendente para hoje. 🌤️</div>

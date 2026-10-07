@@ -142,6 +142,7 @@ textarea { min-height: 80px; resize: vertical; }
 .cell { aspect-ratio: 1; min-width: 36px; border-radius: 8px; border: 1px solid var(--line); font-size: .7rem; display: grid; place-items: center; padding: 0; min-height: 0; background: var(--card); }
 .cell.plantada { background: #f3e6c8; color: #6b4a00; }
 .cell.germinada { background: var(--ok-soft); color: var(--ok); }
+.cell.muda { background: var(--ok); color: var(--card); font-weight: 600; }
 .cell.perdida { background: var(--bad-soft); color: var(--bad); }
 .cell.transplantada { background: var(--brand-soft); color: var(--brand); text-decoration: line-through; }
 @media (prefers-color-scheme: dark) { .cell.plantada { background: #3a3220; color: #f0d79a; } }
