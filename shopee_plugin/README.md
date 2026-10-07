@@ -18,14 +18,21 @@ e o produto é publicado na sua loja.
 python -m shopee_plugin.publicar foto.jpg --preco 49.90 --estoque 10
 ```
 Mostra a prévia e pergunta antes de publicar (`--sim` publica direto).
-Sem `--preco`, usa o preço sugerido pelo Claude.
+
+Sem `--preco`, o preço sai do custo pela regra de precificação (`precificacao/README.md`):
+```bash
+python -m shopee_plugin.publicar foto.jpg --gramas 45 --horas 3.5 --material PLA   # peça 3D
+python -m shopee_plugin.publicar foto.jpg --custo 18.50                            # outro produto
+```
+Sem preço nem custo, usa o preço sugerido pelo Claude.
 
 ## 3. Publicar pelo celular (Telegram)
 
 1. Crie um bot com o @BotFather e coloque o token em `TELEGRAM_BOT_TOKEN`.
 2. Coloque seu chat id em `TELEGRAM_CHAT_ID` (só você poderá usar o bot).
 3. Rode `python -m shopee_plugin.bot_telegram` num computador/servidor ligado.
-4. Mande a foto pro bot (legenda opcional: `preço 49,90 estoque 10 tamanho M`),
+4. Mande a foto pro bot (legenda opcional: `preço 49,90 estoque 10 tamanho M`, ou no lugar do
+   preço `custo 18,50` ou `gramas 45 horas 3,5 PETG`),
    confira a prévia e responda **ok**.
 
 ## Observações
