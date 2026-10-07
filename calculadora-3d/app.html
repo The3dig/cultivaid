@@ -1,0 +1,810 @@
+<title>Custo de Impressão 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: oficina — abas no topo; na calculadora, formulário à esquerda e um "ticket" de custo fixo à direita */
+:root{
+  --paper:#EEF1F0; --panel:#FFFFFF; --sunk:#F5F7F6; --ink:#141B1A; --muted:#5B6866; --line:#D5DCDA;
+  --accent:#2F4BD6; --accent-ink:#FFFFFF; --accent-soft:#E4E8FB;
+  --good:#1C7A4A; --warn:#B26A00; --bad:#C2372B;
+  --c1:#2F4BD6; --c2:#E0892B; --c3:#7A5AC8; --c4:#2A9D8F; --c5:#D1495B; --c6:#8C8C3A; --c7:#6B7A86;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0F1413; --panel:#171E1D; --sunk:#1D2524; --ink:#E6EDEB; --muted:#93A19E; --line:#2B3634;
+  --accent:#8196FF; --accent-ink:#0B1030; --accent-soft:#232C55;
+  --good:#5CC98F; --warn:#E3A84A; --bad:#F07B70;
+  --c1:#8196FF; --c2:#F0A55A; --c3:#B39CF0; --c4:#5CC5B8; --c5:#F07B8C; --c6:#C7C76A; --c7:#9AAAB6;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0F1413; --panel:#171E1D; --sunk:#1D2524; --ink:#E6EDEB; --muted:#93A19E; --line:#2B3634;
+  --accent:#8196FF; --accent-ink:#0B1030; --accent-soft:#232C55;
+  --good:#5CC98F; --warn:#E3A84A; --bad:#F07B70;
+  --c1:#8196FF; --c2:#F0A55A; --c3:#B39CF0; --c4:#5CC5B8; --c5:#F07B8C; --c6:#C7C76A; --c7:#9AAAB6;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+h1{font-size:26px;font-weight:800;letter-spacing:-.01em}
+h2{font-size:19px;font-weight:600}
+h3{font-size:15px;font-weight:600}
+.num,.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:16px}
+.brand small{display:block;color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--muted)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.pill.ok .dot{background:var(--good)} .pill.loc .dot{background:var(--warn)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:20px}
+nav.tabs button{appearance:none;border:0;background:none;font:500 14px var(--f-body);color:var(--muted);padding:10px 14px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:hover{color:var(--ink)}
+button,.btn{font:500 14px var(--f-body);border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{background:none;border-color:transparent;color:var(--muted);padding:6px 8px}
+button.ghost:hover{color:var(--ink)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid-calc{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;align-items:start}
+@media (max-width:900px){.grid-calc{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.02em;min-width:0}
+label.f.wide{grid-column:1/-1}
+input,select{font:15px var(--f-body);color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+input[type=checkbox]{width:auto}
+.unit{position:relative}
+.unit input{padding-right:46px}
+.unit span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:12px var(--f-mono);color:var(--muted);pointer-events:none}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--sunk)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+@media (max-width:560px){.drop{grid-template-columns:minmax(0,1fr)}}
+.drop .acts{display:flex;gap:8px;flex-wrap:wrap}
+.notice{font-size:13px;border-radius:8px;padding:8px 12px;background:var(--sunk);border:1px solid var(--line)}
+.notice.ok{border-color:var(--good)} .notice.err{border-color:var(--bad)} .notice.info{border-color:var(--accent)}
+.mat{display:grid;grid-template-columns:minmax(0,1fr) 120px auto;gap:8px;align-items:end}
+.mat + .mat{margin-top:8px}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid var(--line);vertical-align:-1px;margin-right:6px}
+/* Ticket */
+.ticket{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.ticket .total{font:800 38px/1.1 var(--f-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ticket .per{color:var(--muted);font-size:13px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--sunk);margin:14px 0 6px}
+.bar i{display:block;height:100%}
+.lines{list-style:none;margin:0;padding:0;font-size:14px}
+.lines li{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px dotted var(--line)}
+.lines li:last-child{border-bottom:0}
+.lines .k{width:10px;height:10px;border-radius:2px;align-self:center}
+.lines .sub{display:block;font-size:12px;color:var(--muted)}
+.price{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:grid;gap:6px}
+.price .big{display:flex;justify-content:space-between;align-items:baseline}
+.price .big b{font:800 26px var(--f-display);color:var(--accent);font-variant-numeric:tabular-nums}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+/* listas */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px}
+.card .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.card .meta{font-size:13px;color:var(--muted)}
+.stock{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.stock i{display:block;height:100%;background:var(--good)}
+.stock.low i{background:var(--bad)}
+.tag{font:500 11px var(--f-mono);padding:2px 6px;border-radius:4px;background:var(--sunk);border:1px solid var(--line);color:var(--muted)}
+.tag.ex{border-style:dashed}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sunk)}
+td.r,th.r{text-align:right}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--sunk)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.kpi b{display:block;font:600 22px var(--f-display);font-variant-numeric:tabular-nums}
+.empty{padding:28px;text-align:center;color:var(--muted);border:1.5px dashed var(--line);border-radius:var(--r)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{padding:4px 10px;font-size:13px}
+.chips button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:14px;z-index:9;max-width:calc(100% - 32px)}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Custo de Impressão 3D</h1>
+      <small>Filamento, energia, desgaste da máquina, mão de obra, falhas e taxas, com histórico e estoque.</small>
+    </div>
+    <span id="mode" class="pill"><span class="dot"></span><span>Carregando dados…</span></span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="calc" aria-selected="true">Calcular</button>
+    <button role="tab" data-tab="hist" aria-selected="false">Histórico</button>
+    <button role="tab" data-tab="fil" aria-selected="false">Filamentos</button>
+    <button role="tab" data-tab="prn" aria-selected="false">Impressoras</button>
+    <button role="tab" data-tab="cfg" aria-selected="false">Ajustes</button>
+  </nav>
+
+  <!-- CALCULAR -->
+  <section id="tab-calc">
+    <div class="grid-calc">
+      <div class="stack">
+        <div class="panel">
+          <div class="sec-head"><h2>Importar do fatiador</h2><span class="eyebrow">opcional</span></div>
+          <div class="drop" id="drop">
+            <div class="small">
+              Solte aqui o <b>.gcode</b>, <b>.bgcode</b> ou <b>.gcode.3mf</b> (Bambu Studio, OrcaSlicer, PrusaSlicer, Cura, Simplify3D) ou mande uma <b>foto da tela de fatiamento</b>. Tempo e gramas são preenchidos sozinhos.
+            </div>
+            <div class="acts">
+              <button id="btn-file" class="primary">Arquivo</button>
+              <button id="btn-photo" hidden>Foto do fatiador</button>
+            </div>
+            <input id="in-file" type="file" accept=".gcode,.gco,.g,.bgcode,.3mf" hidden>
+            <input id="in-photo" type="file" accept="image/*" hidden>
+          </div>
+          <div id="import-msg" class="notice" hidden style="margin-top:12px"></div>
+          <div id="plates" class="chips" hidden style="margin-top:10px"></div>
+        </div>
+
+        <div class="panel">
+          <div class="sec-head"><h2>Trabalho</h2></div>
+          <div class="fields">
+            <label class="f wide">Nome da peça<input id="j-name" placeholder="Ex.: Suporte de headset"></label>
+            <label class="f">Cliente<input id="j-client" placeholder="Opcional"></label>
+            <label class="f">Impressora<select id="j-printer"></select></label>
+            <label class="f">Tempo (horas)<div class="unit"><input id="j-h" type="number" min="0" step="1" value="0"><span>h</span></div></label>
+            <label class="f">Tempo (minutos)<div class="unit"><input id="j-m" type="number" min="0" step="1" value="0"><span>min</span></div></label>
+            <label class="f">Peças na mesa<div class="unit"><input id="j-qty" type="number" min="1" step="1" value="1"><span>un</span></div></label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="sec-head"><h2>Filamento usado</h2><button id="add-mat" class="ghost">+ outro filamento</button></div>
+          <div id="mats"></div>
+          <p class="small muted" style="margin:10px 0 0">Use o peso total que o fatiador mostra (inclui suportes, brim e torre de purga).</p>
+        </div>
+
+        <div class="panel">
+          <div class="sec-head"><h2>Mão de obra e extras</h2></div>
+          <div class="fields">
+            <label class="f">Preparo (fatiar, mesa)<div class="unit"><input id="j-prep" type="number" min="0" step="1" value="10"><span>min</span></div></label>
+            <label class="f">Pós-processo (limpar, lixar)<div class="unit"><input id="j-post" type="number" min="0" step="1" value="10"><span>min</span></div></label>
+            <label class="f">Embalagem<div class="unit"><input id="j-pack" type="number" min="0" step="0.01" value="0"><span>R$</span></div></label>
+            <label class="f">Outros insumos<div class="unit"><input id="j-extra" type="number" min="0" step="0.01" value="0"><span>R$</span></div></label>
+          </div>
+          <details style="margin-top:14px">
+            <summary>Ajustes só deste trabalho (margem, falhas, perdas, taxas)</summary>
+            <div class="fields" style="margin-top:12px">
+              <label class="f">Margem de lucro<div class="unit"><input id="j-markup" type="number" min="0" step="1"><span>%</span></div></label>
+              <label class="f">Taxa de falha<div class="unit"><input id="j-fail" type="number" min="0" step="0.5"><span>%</span></div></label>
+              <label class="f">Perda de filamento<div class="unit"><input id="j-waste" type="number" min="0" step="0.5"><span>%</span></div></label>
+              <label class="f">Impostos<div class="unit"><input id="j-tax" type="number" min="0" step="0.5"><span>%</span></div></label>
+              <label class="f">Taxa marketplace<div class="unit"><input id="j-fee" type="number" min="0" step="0.5"><span>%</span></div></label>
+              <label class="f">Taxa fixa por venda<div class="unit"><input id="j-feefix" type="number" min="0" step="0.01"><span>R$</span></div></label>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <aside class="panel ticket" aria-live="polite">
+        <div class="eyebrow">Custo de produção</div>
+        <div class="total num" id="t-total">R$ 0,00</div>
+        <div class="per" id="t-per"></div>
+        <div class="bar" id="t-bar"></div>
+        <ul class="lines" id="t-lines"></ul>
+        <div class="price">
+          <div class="big"><span>Preço sugerido</span><b id="t-price">R$ 0,00</b></div>
+          <div class="kv muted"><span>Por peça</span><span class="num" id="t-price-u"></span></div>
+          <div class="kv muted"><span>Lucro líquido</span><span class="num" id="t-profit"></span></div>
+          <div class="kv muted"><span>Impostos e taxas</span><span class="num" id="t-fees"></span></div>
+        </div>
+        <div class="stack" style="margin-top:16px;gap:10px">
+          <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="j-deduct" checked> Descontar filamento do estoque</label>
+          <button class="primary" id="btn-save">Salvar no histórico</button>
+          <button id="btn-new">Novo cálculo</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- HISTÓRICO -->
+  <section id="tab-hist" hidden>
+    <div class="kpis" id="h-kpis"></div>
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <input id="h-q" placeholder="Buscar por peça ou cliente" style="max-width:320px">
+      <button id="h-csv">Exportar CSV</button>
+    </div>
+    <div id="h-list"></div>
+  </section>
+
+  <!-- FILAMENTOS -->
+  <section id="tab-fil" hidden>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="sec-head"><h2 id="fil-form-title">Novo filamento</h2></div>
+      <div class="fields">
+        <label class="f">Nome<input id="fil-name" placeholder="Ex.: PLA Basic Preto"></label>
+        <label class="f">Marca<input id="fil-brand" placeholder="Ex.: Voolt3D"></label>
+        <label class="f">Tipo<select id="fil-type"><option>PLA</option><option>PLA+</option><option>PETG</option><option>ABS</option><option>ASA</option><option>TPU</option><option>PA/Nylon</option><option>PC</option><option>Resina</option><option>Outro</option></select></label>
+        <label class="f">Cor<input id="fil-color" type="color" value="#2b2b2b" style="height:40px;padding:4px"></label>
+        <label class="f">Preço do rolo<div class="unit"><input id="fil-price" type="number" min="0" step="0.01"><span>R$</span></div></label>
+        <label class="f">Peso do rolo<div class="unit"><input id="fil-weight" type="number" min="1" step="1" value="1000"><span>g</span></div></label>
+        <label class="f">Frete por rolo<div class="unit"><input id="fil-ship" type="number" min="0" step="0.01" value="0"><span>R$</span></div></label>
+        <label class="f">Estoque atual<div class="unit"><input id="fil-stock" type="number" min="0" step="1"><span>g</span></div></label>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="primary" id="fil-save">Salvar filamento</button><button id="fil-cancel" hidden>Cancelar edição</button><span class="small muted" id="fil-perkg"></span></div>
+    </div>
+    <div id="fil-list"></div>
+  </section>
+
+  <!-- IMPRESSORAS -->
+  <section id="tab-prn" hidden>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="sec-head"><h2 id="prn-form-title">Nova impressora</h2></div>
+      <div class="fields">
+        <label class="f">Nome<input id="prn-name" placeholder="Ex.: Bambu Lab A1"></label>
+        <label class="f">Consumo médio<div class="unit"><input id="prn-w" type="number" min="0" step="1"><span>W</span></div></label>
+        <label class="f">Preço pago<div class="unit"><input id="prn-price" type="number" min="0" step="0.01"><span>R$</span></div></label>
+        <label class="f">Vida útil estimada<div class="unit"><input id="prn-life" type="number" min="1" step="100" value="5000"><span>h</span></div></label>
+        <label class="f">Manutenção<div class="unit"><input id="prn-maint" type="number" min="0" step="0.01" value="0.30"><span>R$/h</span></div></label>
+      </div>
+      <p class="small muted" style="margin:10px 0 0">Consumo médio real (não o da fonte): A1 mini ≈ 80 W, A1 ≈ 95 W, P1S ≈ 110 W, X1C ≈ 140 W, Ender 3 ≈ 120 W com mesa em 60 °C. Manutenção cobre bico, PEI, correias, graxa.</p>
+      <div class="row" style="margin-top:14px"><button class="primary" id="prn-save">Salvar impressora</button><button id="prn-cancel" hidden>Cancelar edição</button></div>
+    </div>
+    <div id="prn-list"></div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="tab-cfg" hidden>
+    <div class="stack">
+      <div class="panel">
+        <div class="sec-head"><h2>Valores padrão</h2></div>
+        <div class="fields">
+          <label class="f">Tarifa de energia<div class="unit"><input id="s-kwh" type="number" min="0" step="0.01"><span>R$/kWh</span></div></label>
+          <label class="f">Sua hora de trabalho<div class="unit"><input id="s-labor" type="number" min="0" step="0.5"><span>R$/h</span></div></label>
+          <label class="f">Margem de lucro<div class="unit"><input id="s-markup" type="number" min="0" step="1"><span>%</span></div></label>
+          <label class="f">Taxa de falha<div class="unit"><input id="s-fail" type="number" min="0" step="0.5"><span>%</span></div></label>
+          <label class="f">Perda de filamento<div class="unit"><input id="s-waste" type="number" min="0" step="0.5"><span>%</span></div></label>
+          <label class="f">Impostos<div class="unit"><input id="s-tax" type="number" min="0" step="0.5"><span>%</span></div></label>
+          <label class="f">Taxa marketplace<div class="unit"><input id="s-fee" type="number" min="0" step="0.5"><span>%</span></div></label>
+          <label class="f">Taxa fixa por venda<div class="unit"><input id="s-feefix" type="number" min="0" step="0.01"><span>R$</span></div></label>
+        </div>
+        <p class="small muted" style="margin:10px 0 0">A tarifa está na sua conta de luz: divida o total (com impostos e bandeira) pelos kWh. Impostos: MEI ≈ 0 %, Simples Nacional ≈ 4–6 %. Marketplace: Mercado Livre ≈ 11–19 %, Shopee ≈ 14–20 % + taxa fixa.</p>
+        <div class="row" style="margin-top:14px"><button class="primary" id="s-save">Salvar ajustes</button></div>
+      </div>
+      <div class="panel">
+        <div class="sec-head"><h2>Backup</h2></div>
+        <p class="small muted" style="margin:0 0 12px">Exporta impressoras, filamentos, histórico e ajustes num arquivo JSON. Importar junta os dados com os que já existem.</p>
+        <div class="row"><button id="b-export">Exportar backup</button><button id="b-import">Importar backup</button><input id="b-file" type="file" accept=".json,application/json" hidden></div>
+      </div>
+      <div class="panel">
+        <div class="sec-head"><h2>Como o custo é calculado</h2></div>
+        <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
+          <li><b>Filamento</b> = gramas × (preço do rolo + frete) ÷ peso do rolo × (1 + perda %)</li>
+          <li><b>Energia</b> = consumo (W) ÷ 1000 × horas × tarifa (R$/kWh)</li>
+          <li><b>Depreciação</b> = preço da impressora ÷ vida útil (h) × horas</li>
+          <li><b>Manutenção</b> = R$/h × horas</li>
+          <li><b>Mão de obra</b> = (preparo + pós-processo) ÷ 60 × sua hora</li>
+          <li><b>Falhas</b> = (filamento + energia + depreciação + manutenção) × taxa de falha %</li>
+          <li><b>Preço</b> = (custo × (1 + margem %) + taxa fixa) ÷ (1 − impostos % − marketplace %)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const BRL = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
+const NUM = (n,d=0) => new Intl.NumberFormat("pt-BR",{maximumFractionDigits:d,minimumFractionDigits:d}).format(n||0);
+const money = n => BRL.format(isFinite(n)?n:0);
+const num = v => { const x = parseFloat(String(v??"").replace(",", ".")); return isFinite(x)?x:0; };
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtTime = min => { min=Math.round(min||0); const h=Math.floor(min/60), m=min%60; return h?`${h}h ${String(m).padStart(2,"0")}min`:`${m}min`; };
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+const DEFAULT_SETTINGS = { kwh:0.95, labor:25, markup:100, fail:5, waste:5, tax:0, fee:0, feefix:0 };
+const COLLS = ["printers","filaments","jobs","settings"];
+
+/* ---------------- Banco de dados ----------------
+   No claude.ai: capability "db" (salvo na conta, Claude consegue ler).
+   Fora dele (arquivo aberto no navegador): localStorage. */
+const S = { printers:{}, filaments:{}, jobs:{}, settings:{...DEFAULT_SETTINGS} };
+const Store = {
+  mode:"init", db:null,
+  async init(){
+    let db = null;
+    if (window.claude && typeof window.claude.use === "function") {
+      try { db = await window.claude.use("db"); } catch { db = null; }
+    }
+    if (db) {
+      this.mode = "db"; this.db = db;
+      for (const c of COLLS) {
+        db.collection(c).onSnapshot(snap => {
+          if (c === "settings") {
+            const d = snap.docs.find(x => x.id === "main");
+            S.settings = {...DEFAULT_SETTINGS, ...(d ? d.data() : {})};
+          } else {
+            const m = {}; snap.docs.forEach(d => { m[d.id] = {...d.data(), id:d.id}; }); S[c] = m;
+          }
+          renderAll();
+        }, () => toast("Não consegui ler o banco de dados."));
+      }
+    } else {
+      this.mode = "local";
+      const saved = lsGet("c3d-data");
+      if (saved) { for (const c of ["printers","filaments","jobs"]) S[c] = saved[c] || {}; S.settings = {...DEFAULT_SETTINGS, ...(saved.settings||{})}; }
+      else seedLocal();
+      renderAll();
+    }
+    renderMode();
+  },
+  persistLocal(){ lsSet("c3d-data", {printers:S.printers, filaments:S.filaments, jobs:S.jobs, settings:S.settings}); },
+  async put(coll, id, data){
+    const clean = JSON.parse(JSON.stringify(data)); delete clean.id;
+    if (coll === "settings") S.settings = {...S.settings, ...clean}; else S[coll][id] = {...clean, id};
+    if (this.mode === "db") {
+      try { await this.db.collection(coll).doc(id).set(clean); }
+      catch (e) { toast(e && e.code === "permission_denied" ? "Você só tem permissão de leitura." : "Falha ao salvar no banco."); }
+    } else { this.persistLocal(); renderAll(); }
+  },
+  async del(coll, id){
+    delete S[coll][id];
+    if (this.mode === "db") { try { await this.db.collection(coll).doc(id).delete(); } catch { toast("Falha ao excluir."); } }
+    else { this.persistLocal(); renderAll(); }
+  }
+};
+function seedLocal(){
+  const p = uid(), f = uid();
+  S.printers[p] = {id:p, name:"Bambu Lab A1 (exemplo)", watts:95, price:3200, life:5000, maint:0.30, example:true};
+  S.filaments[f] = {id:f, name:"PLA preto (exemplo)", brand:"Genérico", type:"PLA", color:"#2b2b2b", price:89.9, weight:1000, ship:0, stock:1000, example:true};
+  Store.persistLocal();
+}
+function renderMode(){
+  const el = $("#mode");
+  if (Store.mode === "db") { el.className="pill ok"; el.innerHTML='<span class="dot"></span><span>Banco de dados conectado</span>'; }
+  else { el.className="pill loc"; el.innerHTML='<span class="dot"></span><span>Salvo neste navegador</span>'; }
+}
+
+/* ---------------- Cálculo ---------------- */
+function filamentPerGram(f){ return f ? (num(f.price) + num(f.ship)) / Math.max(1, num(f.weight)||1000) : 0; }
+function readJob(){
+  const st = S.settings;
+  const pick = (id, def) => { const v = $(id).value; return v === "" ? num(def) : num(v); };
+  return {
+    name:$("#j-name").value.trim(), client:$("#j-client").value.trim(),
+    printerId:$("#j-printer").value,
+    minutes: num($("#j-h").value)*60 + num($("#j-m").value),
+    qty: Math.max(1, Math.round(num($("#j-qty").value)||1)),
+    mats: $$("#mats .mat").map(r => ({ filamentId:r.querySelector("select").value, grams:num(r.querySelector("input").value) })),
+    prep:num($("#j-prep").value), post:num($("#j-post").value),
+    pack:num($("#j-pack").value), extra:num($("#j-extra").value),
+    markup:pick("#j-markup", st.markup), fail:pick("#j-fail", st.fail), waste:pick("#j-waste", st.waste),
+    tax:pick("#j-tax", st.tax), fee:pick("#j-fee", st.fee), feefix:pick("#j-feefix", st.feefix),
+  };
+}
+function calc(j){
+  const st = S.settings, p = S.printers[j.printerId] || {};
+  const hours = j.minutes/60;
+  let grams = 0, material = 0;
+  for (const m of j.mats) { grams += m.grams; material += m.grams * filamentPerGram(S.filaments[m.filamentId]); }
+  material *= 1 + j.waste/100;
+  const kwh = num(p.watts)/1000*hours;
+  const energy = kwh * num(st.kwh);
+  const deprec = num(p.price) / Math.max(1, num(p.life)||1) * hours;
+  const maint = num(p.maint) * hours;
+  const labor = (j.prep + j.post)/60 * num(st.labor);
+  const failure = (material + energy + deprec + maint) * j.fail/100;
+  const extras = j.pack + j.extra;
+  const cost = material + energy + deprec + maint + labor + failure + extras;
+  const pct = (j.tax + j.fee)/100;
+  const base = cost*(1 + j.markup/100) + j.feefix;
+  const price = pct < 1 ? base/(1-pct) : base;
+  const fees = price*pct + j.feefix;
+  return { hours, grams, kwh, material, energy, deprec, maint, labor, failure, extras, cost, price, fees, profit: price - fees - cost,
+    unitCost: cost/j.qty, unitPrice: price/j.qty };
+}
+const PARTS = [
+  ["material","Filamento","--c1"],["energy","Energia","--c2"],["deprec","Depreciação","--c3"],
+  ["maint","Manutenção","--c4"],["labor","Mão de obra","--c5"],["failure","Falhas","--c6"],["extras","Embalagem e insumos","--c7"]];
+
+function renderTicket(){
+  const j = readJob(), r = calc(j), st = S.settings, p = S.printers[j.printerId];
+  $("#t-total").textContent = money(r.cost);
+  $("#t-per").textContent = j.qty>1 ? `${money(r.unitCost)} por peça · ${j.qty} peças` : `${fmtTime(j.minutes)} · ${NUM(r.grams,1)} g`;
+  const subs = {
+    material:`${NUM(r.grams,1)} g + ${NUM(j.waste,1)} % de perda`,
+    energy:p?`${NUM(r.kwh,2)} kWh × ${money(st.kwh)}`:"escolha uma impressora",
+    deprec:p?`${money(num(p.price)/Math.max(1,num(p.life)))}/h × ${NUM(r.hours,2)} h`:"",
+    maint:p?`${money(p.maint)}/h`:"",
+    labor:`${NUM(j.prep+j.post)} min × ${money(st.labor)}/h`,
+    failure:`${NUM(j.fail,1)} % sobre produção`, extras:"",
+  };
+  $("#t-bar").innerHTML = r.cost>0 ? PARTS.map(([k,,c]) => `<i style="width:${(r[k]/r.cost*100).toFixed(2)}%;background:var(${c})" title="${k}"></i>`).join("") : "";
+  $("#t-lines").innerHTML = PARTS.map(([k,l,c]) => `<li><span class="k" style="background:var(${c})"></span><span>${l}${subs[k]?`<span class="sub">${esc(subs[k])}</span>`:""}</span><span class="num">${money(r[k])}</span></li>`).join("");
+  $("#t-price").textContent = money(r.price);
+  $("#t-price-u").textContent = money(r.unitPrice);
+  $("#t-profit").textContent = money(r.profit);
+  $("#t-fees").textContent = money(r.fees);
+  saveDraft();
+}
+
+/* ---------------- Formulário do cálculo ---------------- */
+function filOptions(sel){
+  const fs = Object.values(S.filaments).sort((a,b)=>a.name.localeCompare(b.name));
+  if (!fs.length) return `<option value="">Cadastre um filamento</option>`;
+  return fs.map(f => `<option value="${esc(f.id)}"${f.id===sel?" selected":""}>${esc(f.name)} · ${money(filamentPerGram(f)*1000)}/kg</option>`).join("");
+}
+function addMat(filamentId="", grams=""){
+  const d = document.createElement("div"); d.className="mat";
+  const n = $$("#mats .mat").length;
+  d.innerHTML = `<label class="f">Filamento<select id="mat-f-${n}">${filOptions(filamentId)}</select></label>
+    <label class="f">Peso<div class="unit"><input id="mat-g-${n}" type="number" min="0" step="0.01" value="${esc(grams)}"><span>g</span></div></label>
+    <button class="ghost danger" title="Remover">Remover</button>`;
+  d.querySelector("button").onclick = () => { if ($$("#mats .mat").length>1) { d.remove(); renderTicket(); } };
+  $("#mats").appendChild(d);
+}
+function setMats(list){ $("#mats").innerHTML=""; (list.length?list:[{}]).forEach(m => addMat(m.filamentId||"", m.grams??"")); }
+function refreshSelects(){
+  const ps = Object.values(S.printers).sort((a,b)=>a.name.localeCompare(b.name));
+  const cur = $("#j-printer").value;
+  $("#j-printer").innerHTML = ps.length ? ps.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("") : `<option value="">Cadastre uma impressora</option>`;
+  if (cur && S.printers[cur]) $("#j-printer").value = cur;
+  $$("#mats .mat select").forEach(s => { const v=s.value; s.innerHTML = filOptions(v); if (v && S.filaments[v]) s.value=v; });
+}
+function applySettingsPlaceholders(){
+  const st=S.settings;
+  [["#j-markup","markup"],["#j-fail","fail"],["#j-waste","waste"],["#j-tax","tax"],["#j-fee","fee"],["#j-feefix","feefix"]].forEach(([id,k])=> $(id).placeholder = NUM(st[k],2));
+}
+function loadJobIntoForm(j){
+  $("#j-name").value=j.name||""; $("#j-client").value=j.client||"";
+  if (j.printerId && S.printers[j.printerId]) $("#j-printer").value=j.printerId;
+  const mins=Math.round(num(j.minutes)); $("#j-h").value=Math.floor(mins/60); $("#j-m").value=mins%60;
+  $("#j-qty").value=j.qty||1; setMats(j.mats||[]);
+  $("#j-prep").value=j.prep??10; $("#j-post").value=j.post??10; $("#j-pack").value=j.pack??0; $("#j-extra").value=j.extra??0;
+  ["markup","fail","waste","tax","fee","feefix"].forEach(k => $("#j-"+k).value = (j.overrides && k in j.overrides) ? j.overrides[k] : "");
+  renderTicket();
+}
+function saveDraft(){
+  const j=readJob(); j.overrides={}; ["markup","fail","waste","tax","fee","feefix"].forEach(k=>{ if($("#j-"+k).value!=="") j.overrides[k]=num($("#j-"+k).value); });
+  lsSet("c3d-draft", j);
+}
+let draftLoaded = false;
+
+$("#add-mat").onclick = () => { addMat(); renderTicket(); };
+$("#tab-calc").addEventListener("input", renderTicket);
+$("#tab-calc").addEventListener("change", renderTicket);
+$("#btn-new").onclick = () => { loadJobIntoForm({qty:1, mats:[{filamentId:Object.keys(S.filaments)[0]||""}]}); $("#import-msg").hidden=true; $("#plates").hidden=true; toast("Formulário limpo"); };
+$("#btn-save").onclick = async () => {
+  const j = readJob(), r = calc(j);
+  if (!j.minutes && !r.grams) { toast("Informe o tempo ou o peso antes de salvar."); return; }
+  const overrides={}; ["markup","fail","waste","tax","fee","feefix"].forEach(k=>{ if($("#j-"+k).value!=="") overrides[k]=num($("#j-"+k).value); });
+  const id = uid();
+  const rec = { name:j.name||"Sem nome", client:j.client, printerId:j.printerId, printerName:(S.printers[j.printerId]||{}).name||"",
+    minutes:j.minutes, qty:j.qty, prep:j.prep, post:j.post, pack:j.pack, extra:j.extra, overrides,
+    mats:j.mats.map(m=>({...m, name:(S.filaments[m.filamentId]||{}).name||""})),
+    grams:r.grams, cost:+r.cost.toFixed(2), price:+r.price.toFixed(2), profit:+r.profit.toFixed(2),
+    breakdown:Object.fromEntries(PARTS.map(([k])=>[k,+r[k].toFixed(4)])), createdAt:new Date().toISOString() };
+  await Store.put("jobs", id, rec);
+  if ($("#j-deduct").checked) {
+    const used = {}; j.mats.forEach(m => { if (m.filamentId) used[m.filamentId]=(used[m.filamentId]||0)+m.grams*(1+j.waste/100); });
+    for (const [fid,g] of Object.entries(used)) { const f=S.filaments[fid]; if (f && f.stock!=null && f.stock!=="") await Store.put("filaments", fid, {...f, stock:Math.max(0, +(num(f.stock)-g).toFixed(1))}); }
+  }
+  toast("Salvo no histórico");
+};
+
+/* ---------------- Importar arquivo do fatiador ---------------- */
+function parseDuration(s){
+  if (!s) return 0; s=String(s).trim();
+  if (/^\d+(\.\d+)?$/.test(s)) return parseFloat(s)/60; // segundos
+  let min=0, m;
+  const re=/(\d+(?:[.,]\d+)?)\s*(d|h|m(?:in)?|s)\b/gi;
+  while ((m=re.exec(s))) { const v=parseFloat(m[1].replace(",", ".")); const u=m[2][0].toLowerCase(); min += u==="d"?v*1440:u==="h"?v*60:u==="m"?v:v/60; }
+  const hm = s.match(/(\d+)\s*hours?\s*(\d+)\s*minutes?/i); if (!min && hm) min = +hm[1]*60 + +hm[2];
+  return min;
+}
+function parseGcodeText(t){
+  const out = { minutes:0, grams:[], types:[], slicer:"" };
+  const first = (res) => { for (const re of res) { const m=t.match(re); if (m) return m[1]; } return null; };
+  if (/BambuStudio/i.test(t)) out.slicer="Bambu Studio"; else if (/OrcaSlicer/i.test(t)) out.slicer="OrcaSlicer";
+  else if (/PrusaSlicer/i.test(t)) out.slicer="PrusaSlicer"; else if (/Cura_SteamEngine|;FLAVOR:/i.test(t)) out.slicer="Cura";
+  else if (/Simplify3D/i.test(t)) out.slicer="Simplify3D"; else if (/SuperSlicer/i.test(t)) out.slicer="SuperSlicer";
+  const time = first([
+    /;\s*total estimated time\s*[:=]\s*([^;\n]+)/i,
+    /;\s*estimated printing time \(normal mode\)\s*=\s*([^\n]+)/i,
+    /estimated printing time \(normal mode\)\s*=\s*([^\n\0]+)/i,
+    /;\s*model printing time\s*:\s*([^;\n]+)/i,
+    /;TIME:(\d+(?:\.\d+)?)/,
+    /;\s*Build time:\s*([^\n]+)/i,
+    /;\s*estimated printing time\s*[:=]\s*([^\n]+)/i,
+  ]);
+  if (time) out.minutes = parseDuration(time);
+  const g = first([
+    /;\s*filament used \[g\]\s*=\s*([^\n]+)/i,
+    /filament used \[g\]\s*=\s*([^\n\0]+)/i,
+    /;\s*total filament weight \[g\]\s*[:=]\s*([^\n]+)/i,
+    /;\s*total filament used \[g\]\s*=\s*([^\n]+)/i,
+    /;\s*Plastic weights?:\s*([^\n]+)/i,
+  ]);
+  if (g) out.grams = g.split(/[,;]/).map(x=>parseFloat(x));
+  if (!out.grams.length) {
+    const meters = first([/;Filament used:\s*([^\n]+)/i]);
+    if (meters) { // Cura só dá metros: PLA 1,75 mm ≈ 2,98 g/m
+      const ms = meters.split(/[,;]/).map(x=>parseFloat(x)).filter(x=>isFinite(x)&&x>0);
+      out.grams = ms.map(m => +(m*Math.PI*Math.pow(0.0875,2)*100*1.24).toFixed(2)); out.estimatedFromLength = true;
+    }
+  }
+  const ty = first([/;\s*filament_type\s*=\s*([^\n]+)/i, /filament_type\s*=\s*([^\n\0]+)/i]);
+  if (ty) out.types = ty.split(/[;,]/).map(s=>s.trim()).filter(Boolean);
+  // descarta os slots com 0 g mantendo o tipo de cada filamento alinhado
+  const keep = out.grams.map((x,i)=>i).filter(i=>isFinite(out.grams[i]) && out.grams[i]>0);
+  out.types = keep.map(i=>out.types[i]||"");
+  out.grams = keep.map(i=>out.grams[i]);
+  return out;
+}
+async function readHeadTail(file, n=400000){
+  if (file.size <= n*2) return await file.text();
+  const head = await file.slice(0,n).text(); const tail = await file.slice(file.size-n).text();
+  return head + "\n" + tail;
+}
+async function parse3mf(file){
+  if (typeof JSZip === "undefined") throw new Error("Leitor de .3mf não carregou. Exporte como .gcode ou use a foto.");
+  const zip = await JSZip.loadAsync(file);
+  const plates = [];
+  const info = zip.file("Metadata/slice_info.config");
+  if (info) {
+    const xml = new DOMParser().parseFromString(await info.async("string"), "application/xml");
+    xml.querySelectorAll("plate").forEach(pl => {
+      const md = k => { const e=[...pl.querySelectorAll("metadata")].find(x=>x.getAttribute("key")===k); return e?e.getAttribute("value"):null; };
+      const fil = [...pl.querySelectorAll("filament")].map(f => ({ grams:parseFloat(f.getAttribute("used_g"))||0, type:f.getAttribute("type")||"", color:f.getAttribute("color")||"" })).filter(f=>f.grams>0);
+      const pred = parseFloat(md("prediction"));
+      if (pred || fil.length) plates.push({ label:"Mesa "+(md("index")||plates.length+1), minutes:(pred||0)/60, grams:fil.length?fil.map(f=>f.grams):[parseFloat(md("weight"))||0], types:fil.map(f=>f.type), colors:fil.map(f=>f.color), slicer:"Bambu/Orca (.3mf)" });
+    });
+  }
+  if (!plates.length) {
+    const gfiles = zip.file(/Metadata\/plate_\d+\.gcode$/i);
+    for (const gf of gfiles) { const r = parseGcodeText(await gf.async("string")); if (r.minutes||r.grams.length) plates.push({...r, label:gf.name.match(/plate_(\d+)/i)?"Mesa "+gf.name.match(/plate_(\d+)/i)[1]:gf.name}); }
+  }
+  if (!plates.length) throw new Error("Esse .3mf é um projeto ainda não fatiado. No fatiador, clique em Fatiar e use Exportar → “Exportar arquivo fatiado (.gcode.3mf)”.");
+  return plates;
+}
+function matchFilament(type, color){
+  const fs = Object.values(S.filaments);
+  if (!fs.length) return "";
+  const norm = s => String(s||"").toUpperCase().replace(/[^A-Z]/g,"");
+  const byType = fs.filter(f => type && norm(f.type).startsWith(norm(type).slice(0,3)));
+  const pool = byType.length ? byType : fs;
+  if (color) {
+    const hex = h => { const m=String(h).replace("#","").slice(0,6); return [0,2,4].map(i=>parseInt(m.slice(i,i+2),16)||0); };
+    const c = hex(color);
+    pool.sort((a,b)=>{ const d=x=>{const k=hex(x.color||"#000");return (k[0]-c[0])**2+(k[1]-c[1])**2+(k[2]-c[2])**2;}; return d(a)-d(b); });
+  }
+  return pool[0].id;
+}
+function applyParsed(r, source){
+  if (r.minutes) { const m=Math.round(r.minutes); $("#j-h").value=Math.floor(m/60); $("#j-m").value=m%60; }
+  if (r.grams && r.grams.length) setMats(r.grams.map((g,i)=>({ filamentId:matchFilament(r.types&&r.types[i], r.colors&&r.colors[i]), grams:+(+g).toFixed(2) })));
+  if (!$("#j-name").value && source) $("#j-name").value = source.replace(/\.(gcode\.3mf|3mf|gcode|gco|bgcode|g)$/i,"").replace(/[_]+/g," ").slice(0,80);
+  const total = (r.grams||[]).reduce((a,b)=>a+b,0);
+  const msg = $("#import-msg");
+  if (!r.minutes && !total) { msg.className="notice err"; msg.textContent="Não encontrei tempo nem peso nesse arquivo. Confira se ele foi fatiado, ou mande uma foto da tela."; msg.hidden=false; return; }
+  msg.className="notice ok"; msg.hidden=false;
+  msg.innerHTML = `<b>${esc(r.slicer||"Arquivo")}</b>: ${r.minutes?fmtTime(r.minutes):"tempo não encontrado"} · ${total?NUM(total,2)+" g":"peso não encontrado"}${r.grams&&r.grams.length>1?` em ${r.grams.length} filamentos`:""}${r.estimatedFromLength?" (peso estimado pelo comprimento, densidade do PLA)":""}. Confira o filamento escolhido abaixo.${r.note?`<br><span class="muted">${esc(r.note)}</span>`:""}`;
+  renderTicket();
+}
+async function handleFile(file){
+  if (!file) return;
+  const msg=$("#import-msg"); msg.className="notice info"; msg.textContent=`Lendo ${file.name}…`; msg.hidden=false; $("#plates").hidden=true;
+  if (file.type.startsWith("image/")) return handlePhoto(file);
+  try {
+    if (/\.3mf$/i.test(file.name)) {
+      const plates = await parse3mf(file);
+      applyParsed(plates[0], file.name);
+      if (plates.length>1) {
+        const box=$("#plates"); box.hidden=false;
+        box.innerHTML = `<span class="small muted" style="align-self:center">Este arquivo tem ${plates.length} mesas:</span>` + plates.map((p,i)=>`<button aria-pressed="${i===0}" data-i="${i}">${esc(p.label)}</button>`).join("") + `<button data-i="all" aria-pressed="false">Somar todas</button>`;
+        box.onclick = e => { const b=e.target.closest("button"); if(!b) return; box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b));
+          if (b.dataset.i==="all") { const n=Math.max(...plates.map(p=>p.grams.length)); applyParsed({slicer:"Todas as mesas", minutes:plates.reduce((a,p)=>a+p.minutes,0), grams:Array.from({length:n},(_,k)=>plates.reduce((a,p)=>a+(p.grams[k]||0),0)), types:plates[0].types, colors:plates[0].colors}); }
+          else applyParsed(plates[+b.dataset.i]); };
+      }
+    } else {
+      applyParsed(parseGcodeText(await readHeadTail(file)), file.name);
+    }
+  } catch (e) { msg.className="notice err"; msg.textContent = e.message || "Não consegui ler esse arquivo."; }
+}
+let sampleApi = null;
+async function handlePhoto(file){
+  const msg=$("#import-msg");
+  if (!sampleApi) { msg.className="notice err"; msg.textContent="A leitura de fotos só funciona com o app aberto no Claude. Digite o tempo e o peso à mão."; msg.hidden=false; return; }
+  msg.className="notice info"; msg.textContent="Lendo a foto com o Claude…"; msg.hidden=false;
+  try {
+    const prompt = `A imagem é uma foto ou captura da tela de um fatiador de impressão 3D (Bambu Studio, OrcaSlicer, PrusaSlicer, Cura, Creality Print, Elegoo etc.), normalmente o resumo exibido após fatiar.
+Extraia o TEMPO TOTAL de impressão e o PESO de filamento em gramas. Se houver vários filamentos/cores, liste cada um com seu peso. Se só houver comprimento em metros, converta para gramas com 1,75 mm e densidade 1,24 g/cm³ (PLA) e diga isso em "observacao". Prefira o tempo total (com preparo) ao tempo só do modelo.
+Responda SOMENTE com JSON neste formato:
+{"fatiador": string|null, "tempo_minutos": number|null, "filamentos": [{"tipo": string|null, "cor_hex": string|null, "gramas": number}], "observacao": string|null, "confianca": "alta"|"media"|"baixa"}`;
+    const r = await sampleApi.json(prompt, { images:[file], modelTier:"default" });
+    const fil = Array.isArray(r.filamentos) ? r.filamentos.filter(f=>num(f.gramas)>0) : [];
+    applyParsed({ slicer:(r.fatiador||"Foto")+` (confiança ${r.confianca||"?"})`, minutes:num(r.tempo_minutos), grams:fil.map(f=>num(f.gramas)), types:fil.map(f=>f.tipo), colors:fil.map(f=>f.cor_hex), note:r.observacao||"" }, "");
+  } catch (e) {
+    msg.className="notice err";
+    msg.textContent = e && e.code==="not_granted" ? "Permissão para usar o Claude foi negada. Digite os valores à mão." :
+      e && e.code==="rate_limited" ? "Muitas leituras seguidas. Espere um pouco e tente de novo." :
+      e && e.code==="image_rejected" ? "Formato de imagem não aceito. Use JPG ou PNG." : "Não consegui ler a foto. Tente uma imagem mais nítida, só da área com tempo e peso.";
+  }
+}
+$("#btn-file").onclick = () => $("#in-file").click();
+$("#btn-photo").onclick = () => $("#in-photo").click();
+$("#in-file").onchange = e => { handleFile(e.target.files[0]); e.target.value=""; };
+$("#in-photo").onchange = e => { handlePhoto(e.target.files[0]); e.target.value=""; };
+const drop=$("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop", e => handleFile(e.dataTransfer.files[0]));
+document.addEventListener("paste", e => { const f=[...(e.clipboardData?.files||[])][0]; if (f && f.type.startsWith("image/") && !$("#tab-calc").hidden) handlePhoto(f); });
+
+/* ---------------- Histórico ---------------- */
+function renderHist(){
+  const q = $("#h-q").value.trim().toLowerCase();
+  const jobs = Object.values(S.jobs).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+  const list = jobs.filter(j => !q || (j.name+" "+(j.client||"")).toLowerCase().includes(q));
+  const tot = list.reduce((a,j)=>({cost:a.cost+num(j.cost), price:a.price+num(j.price), profit:a.profit+num(j.profit), g:a.g+num(j.grams), m:a.m+num(j.minutes)}),{cost:0,price:0,profit:0,g:0,m:0});
+  $("#h-kpis").innerHTML = [
+    ["Gasto total",money(tot.cost)],["Faturamento sugerido",money(tot.price)],["Lucro previsto",money(tot.profit)],
+    ["Filamento",NUM(tot.g/1000,2)+" kg"],["Horas de máquina",NUM(tot.m/60,1)+" h"]].map(([l,v])=>`<div class="kpi"><span class="eyebrow">${l}</span><b>${v}</b></div>`).join("");
+  if (!jobs.length) { $("#h-list").innerHTML = `<div class="empty">Nenhum trabalho salvo ainda. Faça um cálculo e clique em <b>Salvar no histórico</b>.</div>`; return; }
+  $("#h-list").innerHTML = `<div class="tablewrap"><table><thead><tr><th>Data</th><th>Peça</th><th>Cliente</th><th>Impressora</th><th class="r">Tempo</th><th class="r">Filamento</th><th class="r">Custo</th><th class="r">Preço</th><th></th></tr></thead><tbody>${
+    list.map(j=>`<tr data-id="${esc(j.id)}"><td class="num">${new Date(j.createdAt).toLocaleDateString("pt-BR")}</td><td>${esc(j.name)}${j.qty>1?` <span class="tag">${j.qty} un</span>`:""}</td><td>${esc(j.client||"—")}</td><td>${esc(j.printerName||"—")}</td><td class="r num">${fmtTime(j.minutes)}</td><td class="r num">${NUM(j.grams,1)} g</td><td class="r num">${money(j.cost)}</td><td class="r num">${money(j.price)}</td><td class="r"><button class="ghost" data-act="open">Abrir</button><button class="ghost danger" data-act="del">Excluir</button></td></tr>`).join("")
+  }</tbody></table></div>`;
+}
+$("#h-q").addEventListener("input", renderHist);
+$("#h-list").addEventListener("click", e => {
+  const b=e.target.closest("button"); if(!b) return; const id=b.closest("tr").dataset.id;
+  if (b.dataset.act==="open") { loadJobIntoForm(S.jobs[id]); showTab("calc"); toast("Trabalho carregado na calculadora"); }
+  if (b.dataset.act==="del") confirmClick(b, () => Store.del("jobs", id));
+});
+function confirmClick(b, fn){
+  if (b.dataset.armed) { fn(); return; }
+  b.dataset.armed="1"; const t=b.textContent; b.textContent="Confirmar?";
+  setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent=t; } }, 3000);
+}
+$("#h-csv").onclick = () => {
+  const rows=[["data","peca","cliente","impressora","quantidade","minutos","gramas","filamento","energia","depreciacao","manutencao","mao_de_obra","falhas","extras","custo","preco","lucro"]];
+  Object.values(S.jobs).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt))).forEach(j=>{ const b=j.breakdown||{};
+    rows.push([j.createdAt,j.name,j.client||"",j.printerName||"",j.qty,Math.round(j.minutes),j.grams,b.material,b.energy,b.deprec,b.maint,b.labor,b.failure,b.extras,j.cost,j.price,j.profit].map(v=>typeof v==="number"?String(+v.toFixed(2)).replace(".",","):v)); });
+  const csv="﻿"+rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(";")).join("\r\n");
+  saveFile("historico-impressoes-3d.csv", csv, "text/csv");
+};
+
+/* ---------------- Filamentos ---------------- */
+let editFil=null;
+function renderFil(){
+  const fs=Object.values(S.filaments).sort((a,b)=>a.name.localeCompare(b.name));
+  if (!fs.length) { $("#fil-list").innerHTML=`<div class="empty">Cadastre seus rolos acima para o custo por grama ficar exato.</div>`; return; }
+  $("#fil-list").innerHTML = `<div class="cards">${fs.map(f=>{ const pct = f.stock!=null&&f.stock!==""? Math.min(100, num(f.stock)/Math.max(1,num(f.weight))*100) : null;
+    return `<div class="card" data-id="${esc(f.id)}"><div class="top"><div><h3><span class="swatch" style="background:${esc(f.color||"#888")}"></span>${esc(f.name)}</h3><div class="meta">${esc(f.brand||"")} · ${esc(f.type||"")}</div></div>${f.example?'<span class="tag ex">exemplo</span>':""}</div>
+    <div class="kv"><span class="muted">Custo</span><span class="num">${money(filamentPerGram(f)*1000)}/kg · ${money(filamentPerGram(f))}/g</span></div>
+    ${pct==null?"":`<div class="kv"><span class="muted">Estoque</span><span class="num">${NUM(f.stock)} g</span></div><div class="stock${pct<15?" low":""}"><i style="width:${pct.toFixed(1)}%"></i></div>`}
+    <div class="row" style="gap:4px"><button class="ghost" data-act="edit">Editar</button><button class="ghost" data-act="refill">+1 rolo</button><button class="ghost danger" data-act="del">Excluir</button></div></div>`; }).join("")}</div>`;
+}
+function filPerKgHint(){ const p=num($("#fil-price").value)+num($("#fil-ship").value), w=num($("#fil-weight").value)||1000; $("#fil-perkg").textContent = p? `= ${money(p/w*1000)}/kg · ${money(p/w)}/g` : ""; }
+["#fil-price","#fil-ship","#fil-weight"].forEach(id=>$(id).addEventListener("input",filPerKgHint));
+function fillFilForm(f){
+  editFil=f?f.id:null; $("#fil-form-title").textContent=f?"Editar filamento":"Novo filamento"; $("#fil-cancel").hidden=!f;
+  $("#fil-name").value=f?.name||""; $("#fil-brand").value=f?.brand||""; $("#fil-type").value=f?.type||"PLA"; $("#fil-color").value=f?.color||"#2b2b2b";
+  $("#fil-price").value=f?.price??""; $("#fil-weight").value=f?.weight??1000; $("#fil-ship").value=f?.ship??0; $("#fil-stock").value=f?.stock??""; filPerKgHint();
+}
+$("#fil-save").onclick = async () => {
+  const name=$("#fil-name").value.trim(); if(!name){ toast("Dê um nome ao filamento."); return; }
+  const weight=num($("#fil-weight").value)||1000;
+  const rec={ name, brand:$("#fil-brand").value.trim(), type:$("#fil-type").value, color:$("#fil-color").value, price:num($("#fil-price").value), weight, ship:num($("#fil-ship").value),
+    stock: $("#fil-stock").value===""? (editFil? S.filaments[editFil].stock ?? weight : weight) : num($("#fil-stock").value) };
+  await Store.put("filaments", editFil||uid(), rec); toast(editFil?"Filamento atualizado":"Filamento salvo"); fillFilForm(null);
+};
+$("#fil-cancel").onclick = () => fillFilForm(null);
+$("#fil-list").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; const id=b.closest(".card").dataset.id, f=S.filaments[id];
+  if (b.dataset.act==="edit") { fillFilForm(f); window.scrollTo({top:0,behavior:"smooth"}); }
+  if (b.dataset.act==="refill") Store.put("filaments", id, {...f, stock:num(f.stock)+num(f.weight)});
+  if (b.dataset.act==="del") confirmClick(b, ()=>Store.del("filaments", id)); });
+
+/* ---------------- Impressoras ---------------- */
+let editPrn=null;
+function renderPrn(){
+  const ps=Object.values(S.printers).sort((a,b)=>a.name.localeCompare(b.name));
+  if (!ps.length) { $("#prn-list").innerHTML=`<div class="empty">Cadastre sua impressora acima: consumo, preço e vida útil entram no custo por hora.</div>`; return; }
+  $("#prn-list").innerHTML = `<div class="cards">${ps.map(p=>{ const perH = num(p.watts)/1000*num(S.settings.kwh) + num(p.price)/Math.max(1,num(p.life)) + num(p.maint);
+    return `<div class="card" data-id="${esc(p.id)}"><div class="top"><h3>${esc(p.name)}</h3>${p.example?'<span class="tag ex">exemplo</span>':""}</div>
+    <div class="kv"><span class="muted">Consumo</span><span class="num">${NUM(p.watts)} W</span></div>
+    <div class="kv"><span class="muted">Depreciação</span><span class="num">${money(num(p.price)/Math.max(1,num(p.life)))}/h</span></div>
+    <div class="kv"><span class="muted">Custo da máquina por hora</span><span class="num"><b>${money(perH)}</b></span></div>
+    <div class="row" style="gap:4px"><button class="ghost" data-act="edit">Editar</button><button class="ghost danger" data-act="del">Excluir</button></div></div>`; }).join("")}</div>`;
+}
+function fillPrnForm(p){
+  editPrn=p?p.id:null; $("#prn-form-title").textContent=p?"Editar impressora":"Nova impressora"; $("#prn-cancel").hidden=!p;
+  $("#prn-name").value=p?.name||""; $("#prn-w").value=p?.watts??""; $("#prn-price").value=p?.price??""; $("#prn-life").value=p?.life??5000; $("#prn-maint").value=p?.maint??0.30;
+}
+$("#prn-save").onclick = async () => {
+  const name=$("#prn-name").value.trim(); if(!name){ toast("Dê um nome à impressora."); return; }
+  await Store.put("printers", editPrn||uid(), { name, watts:num($("#prn-w").value), price:num($("#prn-price").value), life:num($("#prn-life").value)||5000, maint:num($("#prn-maint").value) });
+  toast(editPrn?"Impressora atualizada":"Impressora salva"); fillPrnForm(null);
+};
+$("#prn-cancel").onclick = () => fillPrnForm(null);
+$("#prn-list").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; const id=b.closest(".card").dataset.id;
+  if (b.dataset.act==="edit") { fillPrnForm(S.printers[id]); window.scrollTo({top:0,behavior:"smooth"}); }
+  if (b.dataset.act==="del") confirmClick(b, ()=>Store.del("printers", id)); });
+
+/* ---------------- Ajustes e backup ---------------- */
+const SFIELDS = [["kwh","#s-kwh"],["labor","#s-labor"],["markup","#s-markup"],["fail","#s-fail"],["waste","#s-waste"],["tax","#s-tax"],["fee","#s-fee"],["feefix","#s-feefix"]];
+function fillSettings(){ SFIELDS.forEach(([k,id]) => { if (document.activeElement !== $(id)) $(id).value = S.settings[k]; }); }
+$("#s-save").onclick = async () => { const o={}; SFIELDS.forEach(([k,id])=>o[k]=num($(id).value)); await Store.put("settings","main",o); toast("Ajustes salvos"); };
+async function saveFile(filename, data, type){
+  let dl=null; try { dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; } catch {}
+  if (dl) { try { await dl.save({filename, data}); } catch (e) { if (e && e.code !== "declined") toast("Não consegui gerar o arquivo."); } return; }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([data],{type})); a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+}
+$("#b-export").onclick = () => saveFile(`backup-custo-3d-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({version:1, printers:S.printers, filaments:S.filaments, jobs:S.jobs, settings:S.settings}, null, 2), "application/json");
+$("#b-import").onclick = () => $("#b-file").click();
+$("#b-file").onchange = async e => {
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  try { const d=JSON.parse(await f.text()); let n=0;
+    for (const c of ["printers","filaments","jobs"]) for (const [id,v] of Object.entries(d[c]||{})) { await Store.put(c, id, v); n++; }
+    if (d.settings) await Store.put("settings","main",{...S.settings, ...d.settings});
+    toast(`${n} registros importados`);
+  } catch { toast("Arquivo de backup inválido."); }
+};
+
+/* ---------------- Abas e renderização ---------------- */
+function showTab(t){
+  $$("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t));
+  ["calc","hist","fil","prn","cfg"].forEach(x=>$("#tab-"+x).hidden = x!==t);
+  lsSet("c3d-tab", t);
+}
+$$("nav.tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function renderAll(){
+  refreshSelects(); applySettingsPlaceholders();
+  if (!draftLoaded) {
+    draftLoaded = true;
+    const d = lsGet("c3d-draft");
+    if (d && (d.minutes || (d.mats||[]).some(m=>m.grams))) loadJobIntoForm(d);
+    else loadJobIntoForm({ name:"Exemplo: chaveiro personalizado", minutes:95, qty:4, prep:10, post:15, pack:1.5, extra:0,
+      printerId:Object.keys(S.printers)[0], mats:[{filamentId:Object.keys(S.filaments)[0]||"", grams:38.4}] });
+  }
+  renderTicket(); renderHist(); renderFil(); renderPrn(); fillSettings();
+}
+
+setMats([{}]);
+const lastTab = lsGet("c3d-tab"); if (lastTab && $("#tab-"+lastTab)) showTab(lastTab);
+renderTicket();
+Store.init();
+(async () => {
+  try {
+    if (!(window.claude && window.claude.use)) return;
+    const s = await window.claude.use("sample"); if (!s) return;
+    const lim = await s.limits(); if (!lim || !lim.images) return;
+    sampleApi = s; $("#btn-photo").hidden = false;
+    $("#in-photo").accept = (lim.images.mediaTypes||["image/*"]).join(",");
+  } catch {}
+})();
+})();
+</script>
